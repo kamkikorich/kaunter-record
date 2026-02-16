@@ -1,0 +1,125 @@
+// API: Rekod Bantuan
+// POST /api/bantuan
+// Action: START atau END
+
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  findAnggotaById,
+  appendBantuanStartRecord,
+  appendBantuanEndRecord,
+  getBantuanAktif,
+} from '@/lib/google-sheets';
+import { validateBantuanDuration } from '@/lib/validators';
+import { validateAnggotaId, validateRemark, validateBantuanAction, sanitizeString } from '@/lib/validators';
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    let { anggota_id, remark, action } = body;
+
+    // Sanitasi input
+    anggota_id = sanitizeString(anggota_id || '');
+    remark = sanitizeString(remark || '');
+    action = (action || '').toUpperCase().trim();
+
+    // Validasi input
+    const anggotaValidation = validateAnggotaId(anggota_id);
+    if (!anggotaValidation.valid) {
+      return NextResponse.json(
+        { success: false, message: anggotaValidation.error },
+        { status: 400 }
+      );
+    }
+
+    const actionValidation = validateBantuanAction(action);
+    if (!actionValidation.valid) {
+      return NextResponse.json(
+        { success: false, message: actionValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // Cari anggota
+    const anggota = await findAnggotaById(anggota_id);
+    if (!anggota) {
+      return NextResponse.json(
+        { success: false, message: 'ID anggota tidak dijumpai' },
+        { status: 404 }
+      );
+    }
+
+    if (action === 'START') {
+      // Validasi remark
+      const remarkValidation = validateRemark(remark);
+      if (!remarkValidation.valid) {
+        return NextResponse.json(
+          { success: false, message: remarkValidation.error },
+          { status: 400 }
+        );
+      }
+
+      // Semak jika sudah ada bantuan aktif
+      const existingActive = await getBantuanAktif(anggota_id);
+      if (existingActive) {
+        return NextResponse.json(
+          { success: false, message: 'Anda sudah mempunyai bantuan aktif. Tamatkan dahulu sebelum memulakan yang baru.' },
+          { status: 409 }
+        );
+      }
+
+      // Mula bantuan
+      const result = await appendBantuanStartRecord(anggota, remark);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Bantuan dimulakan',
+        data: {
+          record_id: result.recordId,
+        },
+      });
+    } else {
+      // END action
+      // Semak bantuan aktif
+      const activeBantuan = await getBantuanAktif(anggota_id);
+      if (!activeBantuan) {
+        return NextResponse.json(
+          { success: false, message: 'Tiada bantuan aktif untuk ditamatkan' },
+          { status: 404 }
+        );
+      }
+
+      // Tamat bantuan
+      const result = await appendBantuanEndRecord(anggota, activeBantuan);
+
+      // Validasi durasi minimum
+      const durationValidation = validateBantuanDuration(result.durationMin);
+      if (!durationValidation.valid) {
+        // Masih rekodkan, tapi beri amaran
+        return NextResponse.json({
+          success: true,
+          message: `Bantuan ditamatkan. ${durationValidation.error}`,
+          data: {
+            record_id: result.recordId,
+            duration_min: result.durationMin,
+            warning: true,
+          },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Bantuan ditamatkan',
+        data: {
+          record_id: result.recordId,
+          duration_min: result.durationMin,
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Bantuan error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Ralat sistem' },
+      { status: 500 }
+    );
+  }
+}
