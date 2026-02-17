@@ -27,6 +27,12 @@ export default function KehadiranPage() {
     sesi: string;
     tarikh: string;
   } | null>(null);
+  const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_PIN);
+    if (saved) setHasSavedCredentials(true);
+  }, []);
 
   useEffect(() => {
     const savedAnggotaId = localStorage.getItem(STORAGE_KEY_ANGGOTA);
@@ -219,7 +225,7 @@ export default function KehadiranPage() {
                 {loading ? "Memproses..." : "Sahkan PIN"}
               </button>
 
-              {(localStorage.getItem(STORAGE_KEY_PIN) || rememberPin) && (
+              {(hasSavedCredentials || rememberPin) && (
                 <button
                   type="button"
                   onClick={clearSavedCredentials}

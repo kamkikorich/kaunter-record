@@ -29,6 +29,12 @@ export default function BantuanPage() {
   const [successData, setSuccessData] = useState<{
     duration_min: number;
   } | null>(null);
+  const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_PIN);
+    if (saved) setHasSavedCredentials(true);
+  }, []);
 
   useEffect(() => {
     const savedAnggotaId = localStorage.getItem(STORAGE_KEY_ANGGOTA);
@@ -287,7 +293,7 @@ export default function BantuanPage() {
                 {loading ? "Memproses..." : "Sahkan PIN"}
               </button>
 
-              {(localStorage.getItem(STORAGE_KEY_PIN) || rememberPin) && (
+              {(hasSavedCredentials || rememberPin) && (
                 <button
                   type="button"
                   onClick={clearSavedCredentials}
