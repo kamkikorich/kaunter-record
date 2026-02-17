@@ -15,6 +15,7 @@ const SHEETS_ID_FILE = path.resolve(__dirname, '../.sheets-id');
 // Get spreadsheet ID from environment or file
 const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID || '1HEXrd6bydGYCcEwUqu-ftQVf5mhrVkwy7cDzwal03no';
 const HASH_SALT = process.env.HASH_SALT || 'PerkesoSecureSalt2026';
+const PIN_SALT = process.env.PIN_SALT || 'PerkesoPinSalt2026';
 
 // Data anggota
 const ANGGOTA_DATA = [
@@ -42,6 +43,7 @@ const ANGGOTA_HEADERS = [
   'anggota_id',
   'nama',
   'gred',
+  'pin',
   'pin_hash',
   'status'
 ];
@@ -67,10 +69,10 @@ const LOG_HEADERS = [
 ];
 
 /**
- * Hash PIN using SHA256
+ * Hash PIN using SHA256 with PIN_SALT
  */
 function hashPin(pin: string): string {
-  return crypto.createHash('sha256').update(pin + HASH_SALT).digest('hex');
+  return crypto.createHash('sha256').update(pin + PIN_SALT).digest('hex');
 }
 
 /**
@@ -82,10 +84,11 @@ function generateAnggotaId(index: number): string {
 
 /**
  * Generate default PIN from anggota_id
- * Default PIN: last 4 digits of anggota_id (e.g., ANG-0001 -> PIN: 0001)
+ * Default PIN: 6 digits with leading zeros (e.g., ANG-0001 -> PIN: 000001)
  */
 function generateDefaultPin(anggotaId: string): string {
-  return anggotaId.split('-')[1]; // Returns "0001", "0002", etc.
+  const num = anggotaId.split('-')[1]; // Returns "0001", "0002", etc.
+  return '00' + num; // Make it 6 digits: "000001", "000002", etc.
 }
 
 async function setupGoogleSheets() {
@@ -131,18 +134,45 @@ async function setupGoogleSheets() {
       });
       console.log('   ✅ Created ANGGOTA sheet');
     } else {
-      console.log('   ℹ️  ANGGOTA sheet already exists');
+      // Delete and recreate to ensure correct column count
+      console.log('   🔄 Deleting existing ANGGOTA sheet to recreate with correct columns...');
+      const anggotaSheetId = spreadsheetInfo.data.sheets?.find(
+        s => s.properties?.title === 'ANGGOTA'
+      )?.properties?.sheetId;
+      
+      if (anggotaSheetId !== undefined) {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              deleteSheet: { sheetId: anggotaSheetId }
+            }]
+          }
+        });
+        
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              addSheet: {
+                properties: { title: 'ANGGOTA' }
+              }
+            }]
+          }
+        });
+      }
+      console.log('   ✅ Recreated ANGGOTA sheet');
     }
 
     // Clear and write headers for ANGGOTA
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
-      range: 'ANGGOTA!A1:E1',
+      range: 'ANGGOTA!A1:F1',
     });
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'ANGGOTA!A1:E1',
+      range: 'ANGGOTA!A1:F1',
       valueInputOption: 'RAW',
       requestBody: {
         values: [ANGGOTA_HEADERS]
@@ -160,6 +190,7 @@ async function setupGoogleSheets() {
         anggotaId,
         anggota.nama,
         anggota.gred,
+        defaultPin,
         pinHash,
         'AKTIF'
       ];
@@ -168,7 +199,7 @@ async function setupGoogleSheets() {
     // Write anggota data
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `ANGGOTA!A2:E${anggotaRows.length + 1}`,
+      range: `ANGGOTA!A2:F${anggotaRows.length + 1}`,
       valueInputOption: 'RAW',
       requestBody: {
         values: anggotaRows
@@ -239,7 +270,7 @@ async function setupGoogleSheets() {
     console.log(`\nSpreadsheet ID: ${spreadsheetId}`);
     console.log(`URL: https://docs.google.com/spreadsheets/d/${spreadsheetId}`);
     console.log('\n📋 ANGGOTA Sheet:');
-    console.log('   Columns: anggota_id | nama | gred | pin_hash | status');
+    console.log('   Columns: anggota_id | nama | gred | pin | pin_hash | status');
     console.log(`   Records: ${anggotaRows.length}`);
 
     console.log('\n📋 LOG Sheet:');
@@ -247,9 +278,9 @@ async function setupGoogleSheets() {
     console.log('   Records: 0 (ready for entries)');
 
     console.log('\n🔑 DEFAULT PIN FORMAT:');
-    console.log('   Each anggota has PIN = last 4 digits of anggota_id');
-    console.log('   Example: ANG-0001 → PIN: 0001, ANG-0002 → PIN: 0002');
-    console.log('\n   ⚠️  Users should change their PIN after first login!');
+    console.log('   Each anggota has 6-digit PIN (with leading zeros)');
+    console.log('   Example: ANG-0001 → PIN: 000001, ANG-0002 → PIN: 000002');
+    console.log('\n   ⚠️  PIN column is for reference, system only stores hash!');
 
   } catch (error) {
     console.error('❌ Error:', error);

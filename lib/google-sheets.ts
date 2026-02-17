@@ -42,7 +42,7 @@ export async function getAllAnggota(): Promise<Anggota[]> {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${SHEET_NAMES.ANGGOTA}!A2:E`,
+    range: `${SHEET_NAMES.ANGGOTA}!A2:F`,
   });
 
   const rows = response.data.values || [];
@@ -50,8 +50,9 @@ export async function getAllAnggota(): Promise<Anggota[]> {
     anggota_id: row[0] || '',
     nama: row[1] || '',
     gred: row[2] || '',
-    pin_hash: row[3] || '',
-    status: (row[4] || 'AKTIF') as 'AKTIF' | 'TIDAK_AKTIF',
+    pin: row[3] || '',         // Column D - plain PIN for reference
+    pin_hash: row[4] || '',   // Column E - hashed PIN for verification
+    status: (row[5] || 'AKTIF') as 'AKTIF' | 'TIDAK_AKTIF',
   })).filter((a) => a.anggota_id && a.status === 'AKTIF');
 }
 

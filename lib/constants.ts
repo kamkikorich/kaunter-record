@@ -21,6 +21,7 @@ export const ANGGOTA_COLUMNS = {
   ANGGOTA_ID: 'anggota_id',
   NAMA: 'nama',
   GRED: 'gred',
+  PIN: 'pin',
   PIN_HASH: 'pin_hash',
   STATUS: 'status',
 } as const;

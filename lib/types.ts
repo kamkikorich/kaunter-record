@@ -8,7 +8,8 @@ export interface Anggota {
   anggota_id: string;
   nama: string;
   gred: string;
-  pin_hash: string;
+  pin: string;           // Plain PIN for reference
+  pin_hash: string;     // Hashed PIN for verification
   status: 'AKTIF' | 'TIDAK_AKTIF';
 }
 

@@ -70,7 +70,7 @@ async function main() {
   console.log('Mengambil data semasa dari Google Sheets...');
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${SHEET_NAMES.ANGGOTA}!A:E`,
+    range: `${SHEET_NAMES.ANGGOTA}!A:F`,
   });
 
   const rows = response.data.values || [];
@@ -85,7 +85,7 @@ async function main() {
   }
 
   // Find row index for each anggota
-  const updates: { row: number; pinHash: string; id: string; nama: string }[] = [];
+  const updates: { row: number; pinHash: string; pin: string; id: string; nama: string }[] = [];
   
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -96,6 +96,7 @@ async function main() {
       updates.push({
         row: i + 1, // 1-indexed for Google Sheets
         pinHash: pinDataItem.pinHash,
+        pin: pinDataItem.pin,
         id: anggotaId,
         nama: row[1] || '',
       });
@@ -103,22 +104,21 @@ async function main() {
   }
 
   console.log('Anggota yang akan dikemaskini:');
-  console.log('-'.repeat(60));
+  console.log('-'.repeat(70));
   updates.forEach(u => {
-    const pin = pinData.find(p => p.id === u.id)?.pin;
-    console.log(`${u.id}\t${u.nama}\tPIN: ${pin}`);
+    console.log(`${u.id}\t${u.nama}\tPIN: ${u.pin}`);
   });
-  console.log('-'.repeat(60));
+  console.log('-'.repeat(70));
   console.log(`Jumlah: ${updates.length} anggota\n`);
 
-  // Update each row's pin_hash (column D = index 4)
+  // Update each row - column D = PIN, column E = pin_hash
   for (const update of updates) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${SHEET_NAMES.ANGGOTA}!D${update.row}`,
+      range: `${SHEET_NAMES.ANGGOTA}!D${update.row}:E${update.row}`,
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[update.pinHash]],
+        values: [[update.pin, update.pinHash]],
       },
     });
     console.log(`✓ Kemaskini ${update.id} - ${update.nama}`);

@@ -59,9 +59,11 @@ async function main() {
   }
   
   console.log('\n=== COPY KE GOOGLE SHEETS (CSV FORMAT) ===\n');
+  console.log('anggota_id\tnama\tgred\tpin\tpin_hash\tstatus');
+  console.log('-'.repeat(100));
   for (const r of results) {
     const anggota = ANGGOTA_LIST.find(a => a.id === r.id);
-    console.log(`${r.id}\t${r.nama}\t${anggota?.gred}\tAKTIF\t${r.pinHash}`);
+    console.log(`${r.id}\t${r.nama}\t${anggota?.gred}\t${r.pin}\t${r.pinHash}\tAKTIF`);
   }
 }
 
