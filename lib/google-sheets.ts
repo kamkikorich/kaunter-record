@@ -294,13 +294,14 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
       const startRecordId = row[0];
       let hasEndRecord = false;
 
-      for (let j = 1; j < rows.length; j++) {
-        const checkRow = rows[j];
-        if (checkRow[2] === 'BANTUAN_END' && checkRow[5] === anggotaId) {
-          hasEndRecord = true;
-          break;
+        for (let j = 1; j < rows.length; j++) {
+          const checkRow = rows[j];
+          // Check if there is an END record that points to this START record via ref_record_id (index 15)
+          if (checkRow[2] === 'BANTUAN_END' && checkRow[15] === startRecordId) {
+            hasEndRecord = true;
+            break;
+          }
         }
-      }
 
       if (!hasEndRecord) {
         return {
