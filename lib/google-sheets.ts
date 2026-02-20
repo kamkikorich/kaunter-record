@@ -46,14 +46,15 @@ export async function getAllAnggota(): Promise<Anggota[]> {
   });
 
   const rows = response.data.values || [];
-  return rows.map((row) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((row: any[]) => ({
     anggota_id: row[0] || '',
     nama: row[1] || '',
     gred: row[2] || '',
     pin: row[3] || '',         // Column D - plain PIN for reference
     pin_hash: row[4] || '',   // Column E - hashed PIN for verification
     status: (row[5] || 'AKTIF') as 'AKTIF' | 'TIDAK_AKTIF',
-  })).filter((a) => a.anggota_id && a.status === 'AKTIF');
+  })).filter((a: Anggota) => a.anggota_id && a.status === 'AKTIF');
 }
 
 /**
@@ -423,7 +424,8 @@ export async function getAllLogRecords(): Promise<LogRecord[]> {
   });
 
   const rows = response.data.values || [];
-  return rows.slice(1).map((row) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.slice(1).map((row: any[]) => ({
     record_id: row[0] || '',
     server_ts: row[1] || '',
     jenis: row[2] as LogRecord['jenis'],
