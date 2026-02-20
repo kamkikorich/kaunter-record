@@ -60,9 +60,14 @@ export async function POST(request: NextRequest) {
       anggota_id: anggota.anggota_id,
     });
   } catch (error) {
-    console.error('PIN validation error:', error);
+    const err = error as Error;
+    console.error('PIN validation error:', {
+      name: err?.name,
+      message: err?.message,
+      stack: err?.stack,
+    });
     return NextResponse.json(
-      { valid: false, message: 'Ralat sistem' },
+      { valid: false, message: 'Ralat sistem', debug: err?.message },
       { status: 500 }
     );
   }
