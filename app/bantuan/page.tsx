@@ -7,12 +7,22 @@ const STORAGE_KEY_ANGGOTA = "rekod_anggota_id";
 const STORAGE_KEY_PIN = "rekod_pin";
 const STORAGE_KEY_REMEMBER = "rekod_remember_pin";
 
+const LOKASI_OPTIONS = ["Kaunter", "Program Pejabat", "Program Luar", "Lain-lain"];
+const KATEGORI_OPTIONS = ["Pendaftaran", "Bantuan Pertanyaan", "Lain-lain"];
+const SUB_KATEGORI_PENDAFTARAN = ["Kendiri", "Kasih", "MyFuturejobs", "Portal Lindung", "EI-SIP", "Lain-lain"];
+
 export default function BantuanPage() {
   const [step, setStep] = useState<"pin" | "form" | "active" | "end" | "success">("pin");
   const [anggotaId, setAnggotaId] = useState("");
   const [pin, setPin] = useState("");
   const [rememberPin, setRememberPin] = useState(false);
   const [remark, setRemark] = useState("");
+  // Dropdown states
+  const [lokasi, setLokasi] = useState("");
+  const [lokasiLain, setLokasiLain] = useState("");
+  const [kategori, setKategori] = useState("");
+  const [subKategori, setSubKategori] = useState("");
+
   const [anggotaInfo, setAnggotaInfo] = useState<{
     nama: string;
     gred: string;
@@ -84,6 +94,26 @@ export default function BantuanPage() {
     return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }, []);
 
+  // Combine dropdown values + remark into a structured string for storage
+  const buildFullRemark = useCallback(() => {
+    const lokasiNilai = lokasi === "Lain-lain" ? `Lain-lain (${lokasiLain})` : lokasi;
+    const kategoriNilai =
+      kategori === "Pendaftaran" && subKategori
+        ? `Pendaftaran - ${subKategori}`
+        : kategori;
+    return `[Lokasi: ${lokasiNilai}] [Kategori: ${kategoriNilai}] ${remark}`.trim();
+  }, [lokasi, lokasiLain, kategori, subKategori, remark]);
+
+  // Validation for form fields
+  const isFormValid = useCallback(() => {
+    if (!lokasi) return false;
+    if (lokasi === "Lain-lain" && lokasiLain.trim().length === 0) return false;
+    if (!kategori) return false;
+    if (kategori === "Pendaftaran" && !subKategori) return false;
+    if (remark.trim().length < 20) return false;
+    return true;
+  }, [lokasi, lokasiLain, kategori, subKategori, remark]);
+
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -140,13 +170,15 @@ export default function BantuanPage() {
     setError("");
     setLoading(true);
 
+    const fullRemark = buildFullRemark();
+
     try {
       const response = await fetch("/api/bantuan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           anggota_id: anggotaInfo?.anggota_id,
-          remark,
+          remark: fullRemark,
           action: "START",
         }),
       });
@@ -157,11 +189,11 @@ export default function BantuanPage() {
         setActiveBantuan({
           record_id: data.data.record_id,
           bantuan_start: new Date().toISOString(),
-          remark,
+          remark: fullRemark,
         });
         setStep("active");
       } else {
-        setError(data.message || "Gagal memulakan bantuan");
+        setError(data.message || "Gagal memulakan aktiviti / bantuan");
       }
     } catch {
       setError("Ralat sistem. Sila cuba lagi.");
@@ -192,7 +224,7 @@ export default function BantuanPage() {
         });
         setStep("success");
       } else {
-        setError(data.message || "Gagal menamatkan bantuan");
+        setError(data.message || "Gagal menamatkan aktiviti / bantuan");
       }
     } catch {
       setError("Ralat sistem. Sila cuba lagi.");
@@ -204,6 +236,10 @@ export default function BantuanPage() {
   const resetForm = () => {
     setStep("pin");
     setRemark("");
+    setLokasi("");
+    setLokasiLain("");
+    setKategori("");
+    setSubKategori("");
     setAnggotaInfo(null);
     setActiveBantuan(null);
     setElapsedTime(0);
@@ -316,6 +352,91 @@ export default function BantuanPage() {
                 </p>
               </div>
 
+              {/* Dropdown Lokasi */}
+              <div>
+                <label className="label" htmlFor="lokasi">
+                  Lokasi
+                </label>
+                <select
+                  id="lokasi"
+                  className="input bg-white cursor-pointer"
+                  value={lokasi}
+                  onChange={(e) => {
+                    setLokasi(e.target.value);
+                    setLokasiLain("");
+                  }}
+                  required
+                >
+                  <option value="">-- Pilih Lokasi --</option>
+                  {LOKASI_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Input teks jika Lokasi = Lain-lain */}
+              {lokasi === "Lain-lain" && (
+                <div>
+                  <label className="label" htmlFor="lokasiLain">
+                    Nyatakan Lokasi
+                  </label>
+                  <input
+                    id="lokasiLain"
+                    type="text"
+                    className="input"
+                    value={lokasiLain}
+                    onChange={(e) => setLokasiLain(e.target.value)}
+                    placeholder="Masukkan lokasi sebenar"
+                    required
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {/* Dropdown Kategori Aktiviti */}
+              <div>
+                <label className="label" htmlFor="kategori">
+                  Kategori Aktiviti
+                </label>
+                <select
+                  id="kategori"
+                  className="input bg-white cursor-pointer"
+                  value={kategori}
+                  onChange={(e) => {
+                    setKategori(e.target.value);
+                    setSubKategori("");
+                  }}
+                  required
+                >
+                  <option value="">-- Pilih Kategori --</option>
+                  {KATEGORI_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sub-dropdown jika Kategori = Pendaftaran */}
+              {kategori === "Pendaftaran" && (
+                <div>
+                  <label className="label" htmlFor="subKategori">
+                    Jenis Pendaftaran
+                  </label>
+                  <select
+                    id="subKategori"
+                    className="input bg-white cursor-pointer"
+                    value={subKategori}
+                    onChange={(e) => setSubKategori(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Pilih Jenis Pendaftaran --</option>
+                    {SUB_KATEGORI_PENDAFTARAN.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Keterangan Aktiviti / Bantuan */}
               <div>
                 <label className="label" htmlFor="remark">
                   Keterangan Aktiviti / Bantuan
@@ -328,7 +449,7 @@ export default function BantuanPage() {
                   placeholder="Terangkan aktiviti / bantuan yang dilaksanakan (minima 20 aksara)"
                   required
                 />
-                <p className="text-xs text-slate-500 mt-1">
+                <p className={`text-xs mt-1 ${remark.trim().length >= 20 ? "text-green-600" : "text-slate-500"}`}>
                   {remark.length}/20 aksara minimum
                 </p>
               </div>
@@ -346,7 +467,7 @@ export default function BantuanPage() {
                 <button
                   type="submit"
                   className="btn-primary flex-1"
-                  disabled={loading || remark.trim().length < 20}
+                  disabled={loading || !isFormValid()}
                 >
                   {loading ? "Memproses..." : "Mulakan Aktiviti / Bantuan"}
                 </button>
