@@ -231,7 +231,7 @@ export default function BantuanPage() {
 
         <div className="card">
           <h1 className="text-2xl font-bold text-slate-800 mb-6 text-center">
-            Rekod Bantuan
+            Rekod Aktiviti / Bantuan
           </h1>
 
           {step === "pin" && (
@@ -318,14 +318,14 @@ export default function BantuanPage() {
 
               <div>
                 <label className="label" htmlFor="remark">
-                  Keterangan Bantuan
+                  Keterangan Aktiviti / Bantuan
                 </label>
                 <textarea
                   id="remark"
                   className="input min-h-[100px] resize-none"
                   value={remark}
                   onChange={(e) => setRemark(e.target.value)}
-                  placeholder="Terangkan bantuan yang akan diberikan (minima 20 aksara)"
+                  placeholder="Terangkan aktiviti / bantuan yang dilaksanakan (minima 20 aksara)"
                   required
                 />
                 <p className="text-xs text-slate-500 mt-1">
@@ -348,7 +348,7 @@ export default function BantuanPage() {
                   className="btn-primary flex-1"
                   disabled={loading || remark.trim().length < 20}
                 >
-                  {loading ? "Memproses..." : "Mulakan Bantuan"}
+                  {loading ? "Memproses..." : "Mulakan Aktiviti / Bantuan"}
                 </button>
               </div>
             </form>
@@ -385,7 +385,7 @@ export default function BantuanPage() {
                 onClick={handleEndBantuan}
                 disabled={loading}
               >
-                {loading ? "Memproses..." : "Tamatkan Bantuan"}
+                {loading ? "Memproses..." : "Tamatkan Aktiviti / Bantuan"}
               </button>
             </div>
           )}
@@ -394,7 +394,7 @@ export default function BantuanPage() {
             <div className="text-center space-y-4">
               <div className="status-success">
                 <div className="text-4xl mb-2">✅</div>
-                <p className="font-medium">Bantuan Berjaya Ditamatkan</p>
+                <p className="font-medium">Aktiviti / Bantuan Berjaya Ditamatkan</p>
               </div>
 
               <div className="p-4 bg-slate-100 rounded-lg">
@@ -409,7 +409,7 @@ export default function BantuanPage() {
                 className="btn-primary w-full"
                 onClick={resetForm}
               >
-                Rekod Bantuan Lain
+                Rekod Lain
               </button>
             </div>
           )}

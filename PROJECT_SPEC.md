@@ -10,7 +10,7 @@ Sistem ini dibangunkan untuk:
 
 Merekod kehadiran anggota bertugas di kaunter (sesi pagi & petang)
 
-Merekod bantuan kaunter oleh anggota lain ketika waktu sibuk
+Merekod aktiviti / bantuan kaunter oleh anggota lain ketika waktu sibuk
 
 Menyediakan dashboard analitik bagi tujuan penilaian rasmi prestasi tahunan
 
@@ -25,9 +25,9 @@ Rekod kehadiran sesi pagi
 
 Rekod kehadiran sesi petang
 
-Rekod bantuan kaunter dengan remark wajib
+Rekod aktiviti / bantuan kaunter dengan remark wajib
 
-Pengiraan durasi bantuan
+Pengiraan durasi aktiviti / bantuan
 
 Dashboard statistik
 
@@ -52,7 +52,7 @@ Penilaian automatik oleh AI
 
 Merekod kehadiran
 
-Merekod bantuan
+Merekod aktiviti / bantuan
 
 Tiada akses kepada dashboard keseluruhan
 
@@ -92,7 +92,7 @@ anggota_id
 
 Maksimum satu rekod per sesi per hari
 
-5.2 Bantuan Kaunter
+5.2 Aktiviti / Bantuan Kaunter
 
 Anggota memilih nama
 
@@ -108,7 +108,7 @@ Sistem mengira durasi
 
 Minimum durasi: 3 minit
 
-Tidak dibenarkan bantuan bertindih
+Tidak dibenarkan aktiviti / bantuan bertindih
 
 5.3 Dashboard
 
@@ -120,9 +120,9 @@ Jumlah kehadiran pagi
 
 Jumlah kehadiran petang
 
-Jumlah bantuan
+Jumlah aktiviti / bantuan
 
-Jumlah durasi bantuan
+Jumlah durasi aktiviti / bantuan
 
 Purata durasi
 
@@ -130,7 +130,7 @@ Statistik Individu
 
 Kehadiran per sesi
 
-Bilangan bantuan
+Bilangan aktiviti / bantuan
 
 Total durasi
 
@@ -216,7 +216,7 @@ Menyediakan bukti audit
 Risiko	Mitigasi
 Anggota guna nama orang lain	PIN wajib
 Remark tidak bermakna	Minimum 20 aksara
-Bantuan palsu	Minimum 3 minit
+Aktiviti / Bantuan palsu	Minimum 3 minit
 Manipulasi Google Sheet	Hash chain
 Akses dashboard tanpa kebenaran	Password + HTTP-only cookie
 🔟 Batasan Sistem

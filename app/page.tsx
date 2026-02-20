@@ -46,10 +46,10 @@ export default function HomePage() {
                 </span>
               </div>
               <h2 className="text-xl font-semibold text-slate-800 mb-2">
-                Rekod Bantuan
+                Rekod Aktiviti / Bantuan
               </h2>
               <p className="text-slate-600 text-sm">
-                Catat bantuan yang diberikan di kaunter
+                Catat aktiviti / bantuan yang dilaksanakan oleh anggota
               </p>
             </div>
           </Link>
