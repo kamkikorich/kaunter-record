@@ -25,6 +25,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "googleapis": [
+        "./node_modules/googleapis/build/src/index.d.ts"
       ]
     }
   },
