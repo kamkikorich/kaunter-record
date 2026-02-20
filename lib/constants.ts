@@ -44,7 +44,23 @@ export const LOG_COLUMNS = {
   HASH: 'hash',
   STATUS: 'status',
   REF_RECORD_ID: 'ref_record_id',
+  // Kolum baru Q, R, S — Tambah header ini dalam Google Sheets secara manual
+  LOKASI: 'lokasi',         // Kolum Q
+  KATEGORI: 'kategori',     // Kolum R
+  SUB_KATEGORI: 'sub_kategori', // Kolum S
 } as const;
+
+// Pilihan untuk dropdown Lokasi
+export const LOKASI_PILIHAN = ['Kaunter', 'Program Pejabat', 'Program Luar', 'Lain-lain'] as const;
+export type LokasiType = (typeof LOKASI_PILIHAN)[number];
+
+// Pilihan untuk dropdown Kategori
+export const KATEGORI_PILIHAN = ['Pendaftaran', 'Bantuan Pertanyaan', 'Lain-lain'] as const;
+export type KategoriType = (typeof KATEGORI_PILIHAN)[number];
+
+// Sub-pilihan untuk Kategori Pendaftaran
+export const SUB_KATEGORI_PENDAFTARAN = ['Kendiri', 'Kasih', 'MyFuturejobs', 'Portal Lindung', 'EI-SIP', 'Lain-lain'] as const;
+export type SubKategoriPendaftaranType = (typeof SUB_KATEGORI_PENDAFTARAN)[number];
 
 // Pengesahan
 export const VALIDATION_RULES = {

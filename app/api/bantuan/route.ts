@@ -15,11 +15,14 @@ import { validateAnggotaId, validateRemark, validateBantuanAction, sanitizeStrin
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    let { anggota_id, remark, action } = body;
+    let { anggota_id, remark, action, lokasi, kategori, sub_kategori } = body;
 
     // Sanitasi input
     anggota_id = sanitizeString(anggota_id || '');
     remark = sanitizeString(remark || '');
+    lokasi = sanitizeString(lokasi || '');
+    kategori = sanitizeString(kategori || '');
+    sub_kategori = sanitizeString(sub_kategori || '');
     action = (action || '').toUpperCase().trim();
 
     // Validasi input
@@ -58,21 +61,41 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Validasi lokasi dan kategori wajib
+      if (!lokasi) {
+        return NextResponse.json(
+          { success: false, message: 'Lokasi mesti dipilih' },
+          { status: 400 }
+        );
+      }
+      if (!kategori) {
+        return NextResponse.json(
+          { success: false, message: 'Kategori aktiviti mesti dipilih' },
+          { status: 400 }
+        );
+      }
+      if (kategori === 'Pendaftaran' && !sub_kategori) {
+        return NextResponse.json(
+          { success: false, message: 'Jenis pendaftaran mesti dipilih' },
+          { status: 400 }
+        );
+      }
+
       // Semak jika sudah ada bantuan aktif
       const existingActive = await getBantuanAktif(anggota_id);
       if (existingActive) {
         return NextResponse.json(
-          { success: false, message: 'Anda sudah mempunyai bantuan aktif. Tamatkan dahulu sebelum memulakan yang baru.' },
+          { success: false, message: 'Anda sudah mempunyai aktiviti aktif. Tamatkan dahulu sebelum memulakan yang baru.' },
           { status: 409 }
         );
       }
 
-      // Mula bantuan
-      const result = await appendBantuanStartRecord(anggota, remark);
+      // Mula bantuan dengan lokasi, kategori, sub_kategori
+      const result = await appendBantuanStartRecord(anggota, remark, lokasi, kategori, sub_kategori);
 
       return NextResponse.json({
         success: true,
-        message: 'Bantuan dimulakan',
+        message: 'Aktiviti / bantuan dimulakan',
         data: {
           record_id: result.recordId,
         },
@@ -83,7 +106,7 @@ export async function POST(request: NextRequest) {
       const activeBantuan = await getBantuanAktif(anggota_id);
       if (!activeBantuan) {
         return NextResponse.json(
-          { success: false, message: 'Tiada bantuan aktif untuk ditamatkan' },
+          { success: false, message: 'Tiada aktiviti aktif untuk ditamatkan' },
           { status: 404 }
         );
       }
@@ -97,7 +120,7 @@ export async function POST(request: NextRequest) {
         // Masih rekodkan, tapi beri amaran
         return NextResponse.json({
           success: true,
-          message: `Bantuan ditamatkan. ${durationValidation.error}`,
+          message: `Aktiviti / bantuan ditamatkan. ${durationValidation.error}`,
           data: {
             record_id: result.recordId,
             duration_min: result.durationMin,
@@ -108,7 +131,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: 'Bantuan ditamatkan',
+        message: 'Aktiviti / bantuan ditamatkan',
         data: {
           record_id: result.recordId,
           duration_min: result.durationMin,

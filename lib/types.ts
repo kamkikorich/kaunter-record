@@ -31,6 +31,10 @@ export interface LogRecord {
   hash: string;
   status: StatusRekodType;
   ref_record_id?: string;
+  // Kolum baru (Q, R, S)
+  lokasi?: string;
+  kategori?: string;
+  sub_kategori?: string;
 }
 
 // Request untuk kehadiran
@@ -43,6 +47,9 @@ export interface KehadiranRequest {
 export interface BantuanRequest {
   anggota_id: string;
   remark: string;
+  lokasi?: string;
+  kategori?: string;
+  sub_kategori?: string;
   action: 'START' | 'END';
 }
 

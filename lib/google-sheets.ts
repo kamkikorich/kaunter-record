@@ -215,7 +215,10 @@ export async function checkKehadiranExists(
  */
 export async function appendBantuanStartRecord(
   anggota: Anggota,
-  remark: string
+  remark: string,
+  lokasi: string = '',
+  kategori: string = '',
+  sub_kategori: string = ''
 ): Promise<{ recordId: string; success: boolean }> {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = getSpreadsheetId();
@@ -234,33 +237,40 @@ export async function appendBantuanStartRecord(
     nama: anggota.nama,
     gred: anggota.gred,
     remark,
+    lokasi,
+    kategori,
+    sub_kategori,
     bantuan_start: serverTs,
   };
 
   const hash = generateRecordHash(prevHash, recordId, serverTs, payload);
 
+  // Row A-P: sedia ada | Q: lokasi | R: kategori | S: sub_kategori
   const row = [
-    recordId,
-    serverTs,
-    'BANTUAN_START',
-    tarikh,
-    '', // sesi
-    anggota.anggota_id,
-    anggota.nama,
-    anggota.gred,
-    remark,
-    serverTs, // bantuan_start
-    '', // bantuan_end
-    '', // durasi_min
-    prevHash,
-    hash,
-    'AKTIF',
-    '',
+    recordId,       // A: record_id
+    serverTs,       // B: server_ts
+    'BANTUAN_START',// C: jenis
+    tarikh,         // D: tarikh
+    '',             // E: sesi
+    anggota.anggota_id, // F: anggota_id
+    anggota.nama,   // G: nama
+    anggota.gred,   // H: gred
+    remark,         // I: remark
+    serverTs,       // J: bantuan_start
+    '',             // K: bantuan_end
+    '',             // L: durasi_min
+    prevHash,       // M: prev_hash
+    hash,           // N: hash
+    'AKTIF',        // O: status
+    '',             // P: ref_record_id
+    lokasi,         // Q: lokasi
+    kategori,       // R: kategori
+    sub_kategori,   // S: sub_kategori
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: `${SHEET_NAMES.LOG}!A:P`,
+    range: `${SHEET_NAMES.LOG}!A:S`,
     valueInputOption: 'RAW',
     requestBody: {
       values: [row],
@@ -279,7 +289,7 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${SHEET_NAMES.LOG}!A:P`,
+    range: `${SHEET_NAMES.LOG}!A:S`,
   });
 
   const rows = response.data.values || [];
@@ -290,18 +300,16 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
     const rowStatus = row[14];
 
     if (jenis === 'BANTUAN_START' && rowAnggotaId === anggotaId && rowStatus === 'AKTIF') {
-      // Check if there's a corresponding END record
       const startRecordId = row[0];
       let hasEndRecord = false;
 
-        for (let j = 1; j < rows.length; j++) {
-          const checkRow = rows[j];
-          // Check if there is an END record that points to this START record via ref_record_id (index 15)
-          if (checkRow[2] === 'BANTUAN_END' && checkRow[15] === startRecordId) {
-            hasEndRecord = true;
-            break;
-          }
+      for (let j = 1; j < rows.length; j++) {
+        const checkRow = rows[j];
+        if (checkRow[2] === 'BANTUAN_END' && checkRow[15] === startRecordId) {
+          hasEndRecord = true;
+          break;
         }
+      }
 
       if (!hasEndRecord) {
         return {
@@ -317,6 +325,9 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
           prev_hash: row[12],
           hash: row[13],
           status: 'AKTIF',
+          lokasi: row[16] || '',
+          kategori: row[17] || '',
+          sub_kategori: row[18] || '',
         };
       }
     }
@@ -354,6 +365,9 @@ export async function appendBantuanEndRecord(
     nama: anggota.nama,
     gred: anggota.gred,
     remark: startRecord.remark,
+    lokasi: startRecord.lokasi || '',
+    kategori: startRecord.kategori || '',
+    sub_kategori: startRecord.sub_kategori || '',
     bantuan_start: startRecord.bantuan_start,
     bantuan_end: serverTs,
     durasi_min: durationMin,
@@ -361,28 +375,32 @@ export async function appendBantuanEndRecord(
 
   const hash = generateRecordHash(prevHash, recordId, serverTs, payload);
 
+  // Row A-P: sedia ada | Q: lokasi | R: kategori | S: sub_kategori
   const row = [
-    recordId,
-    serverTs,
-    'BANTUAN_END',
-    tarikh,
-    '',
-    anggota.anggota_id,
-    anggota.nama,
-    anggota.gred,
-    startRecord.remark || '',
-    startRecord.bantuan_start || '',
-    serverTs,
-    durationMin,
-    prevHash,
-    hash,
-    'AKTIF',
-    startRecord.record_id,
+    recordId,                       // A
+    serverTs,                       // B
+    'BANTUAN_END',                  // C
+    tarikh,                         // D
+    '',                             // E: sesi
+    anggota.anggota_id,             // F
+    anggota.nama,                   // G
+    anggota.gred,                   // H
+    startRecord.remark || '',       // I: remark
+    startRecord.bantuan_start || '',// J: bantuan_start
+    serverTs,                       // K: bantuan_end
+    durationMin,                    // L: durasi_min
+    prevHash,                       // M
+    hash,                           // N
+    'AKTIF',                        // O
+    startRecord.record_id,          // P: ref_record_id
+    startRecord.lokasi || '',       // Q: lokasi
+    startRecord.kategori || '',     // R: kategori
+    startRecord.sub_kategori || '',  // S: sub_kategori
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: `${SHEET_NAMES.LOG}!A:P`,
+    range: `${SHEET_NAMES.LOG}!A:S`,
     valueInputOption: 'RAW',
     requestBody: {
       values: [row],
@@ -401,7 +419,7 @@ export async function getAllLogRecords(): Promise<LogRecord[]> {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${SHEET_NAMES.LOG}!A:P`,
+    range: `${SHEET_NAMES.LOG}!A:S`,
   });
 
   const rows = response.data.values || [];
@@ -422,6 +440,9 @@ export async function getAllLogRecords(): Promise<LogRecord[]> {
     hash: row[13] || '',
     status: row[14] as LogRecord['status'],
     ref_record_id: row[15] || undefined,
+    lokasi: row[16] || undefined,
+    kategori: row[17] || undefined,
+    sub_kategori: row[18] || undefined,
   }));
 }
 
