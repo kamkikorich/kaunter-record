@@ -344,7 +344,7 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
 export async function appendBantuanEndRecord(
   anggota: Anggota,
   startRecord: LogRecord
-): Promise<{ recordId: string; success: boolean; durationMin: number }> {
+): Promise<{ recordId: string; success: boolean; durationMin: number; warning?: string }> {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = getSpreadsheetId();
 
@@ -356,9 +356,27 @@ export async function appendBantuanEndRecord(
   const prevHash = lastRecord?.hash || GENESIS_HASH;
 
   // Kira durasi
-  const startTime = new Date(startRecord.bantuan_start || '').getTime();
-  const endTime = new Date(serverTs).getTime();
-  const durationMin = Math.round((endTime - startTime) / (1000 * 60));
+  const startDate = new Date(startRecord.bantuan_start || '');
+  const endDate = new Date(serverTs);
+
+  let finalEndTime = endDate.getTime();
+  let finalRemark = startRecord.remark;
+  let isCrossedMidnight = false;
+
+  if (
+    startDate.getDate() !== endDate.getDate() ||
+    startDate.getMonth() !== endDate.getMonth() ||
+    startDate.getFullYear() !== endDate.getFullYear()
+  ) {
+    // Crossed midnight. Limit calculation to 23:59:59 of start day.
+    const midnight = new Date(startDate);
+    midnight.setHours(23, 59, 59, 999);
+    finalEndTime = midnight.getTime();
+    finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + '[TERLUPA MATIKAN TUGASAN]';
+    isCrossedMidnight = true;
+  }
+
+  const durationMin = Math.round((finalEndTime - startDate.getTime()) / (1000 * 60));
 
   const payload = {
     jenis: 'BANTUAN_END',
@@ -366,7 +384,7 @@ export async function appendBantuanEndRecord(
     anggota_id: anggota.anggota_id,
     nama: anggota.nama,
     gred: anggota.gred,
-    remark: startRecord.remark,
+    remark: finalRemark,
     lokasi: startRecord.lokasi || '',
     kategori: startRecord.kategori || '',
     sub_kategori: startRecord.sub_kategori || '',
@@ -387,7 +405,7 @@ export async function appendBantuanEndRecord(
     anggota.anggota_id,             // F
     anggota.nama,                   // G
     anggota.gred,                   // H
-    startRecord.remark || '',       // I: remark
+    finalRemark || '',              // I: remark
     startRecord.bantuan_start || '',// J: bantuan_start
     serverTs,                       // K: bantuan_end
     durationMin,                    // L: durasi_min
@@ -409,7 +427,12 @@ export async function appendBantuanEndRecord(
     },
   });
 
-  return { recordId, success: true, durationMin };
+  return {
+    recordId,
+    success: true,
+    durationMin,
+    warning: isCrossedMidnight ? "Aktiviti melebihi 12 tengah malam. Masa dipotong dan direkod '[TERLUPA MATIKAN TUGASAN]'." : undefined
+  };
 }
 
 /**

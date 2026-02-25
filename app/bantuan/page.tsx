@@ -11,6 +11,8 @@ import {
 const STORAGE_KEY_ANGGOTA = "rekod_anggota_id";
 const STORAGE_KEY_PIN = "rekod_pin";
 const STORAGE_KEY_REMEMBER = "rekod_remember_pin";
+const STORAGE_KEY_ACTIVE = "rekod_active_bantuan";
+const STORAGE_KEY_ANGGOTA_INFO = "rekod_anggota_info";
 
 export default function BantuanPage() {
   const [step, setStep] = useState<"pin" | "form" | "active" | "end" | "success">("pin");
@@ -43,8 +45,10 @@ export default function BantuanPage() {
   const [error, setError] = useState("");
   const [successData, setSuccessData] = useState<{
     duration_min: number;
+    warning?: string;
   } | null>(null);
   const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
+  const [isOverdue, setIsOverdue] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PIN);
@@ -55,10 +59,26 @@ export default function BantuanPage() {
     const savedAnggotaId = localStorage.getItem(STORAGE_KEY_ANGGOTA);
     const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
     const savedRemember = localStorage.getItem(STORAGE_KEY_REMEMBER) === "true";
+    
+    const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
+    const savedInfo = localStorage.getItem(STORAGE_KEY_ANGGOTA_INFO);
+
     if (savedAnggotaId) setAnggotaId(savedAnggotaId);
     if (savedPin && savedRemember) {
       setPin(savedPin);
       setRememberPin(true);
+    }
+
+    if (savedActive && savedInfo) {
+      try {
+        const parsedActive = JSON.parse(savedActive);
+        const parsedInfo = JSON.parse(savedInfo);
+        setAnggotaInfo(parsedInfo);
+        setActiveBantuan(parsedActive);
+        setStep("active");
+      } catch (e) {
+        console.error("Failed to parse saved active state", e);
+      }
     }
   }, []);
 
@@ -76,9 +96,25 @@ export default function BantuanPage() {
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (step === "active" && activeBantuan) {
+      setIsOverdue(false);
       interval = setInterval(() => {
-        const start = new Date(activeBantuan.bantuan_start).getTime();
-        setElapsedTime(Math.floor((Date.now() - start) / 1000));
+        const start = new Date(activeBantuan.bantuan_start);
+        const now = new Date();
+        
+        if (
+          start.getDate() !== now.getDate() ||
+          start.getMonth() !== now.getMonth() ||
+          start.getFullYear() !== now.getFullYear()
+        ) {
+          // Crossed midnight. Limit calculation to 23:59:59 of start day.
+          const midnight = new Date(start);
+          midnight.setHours(23, 59, 59, 999);
+          setElapsedTime(Math.floor((midnight.getTime() - start.getTime()) / 1000));
+          setIsOverdue(true);
+        } else {
+          setElapsedTime(Math.floor((now.getTime() - start.getTime()) / 1000));
+          setIsOverdue(false);
+        }
       }, 1000);
     }
     return () => { if (interval) clearInterval(interval); };
@@ -121,18 +157,22 @@ export default function BantuanPage() {
           localStorage.setItem(STORAGE_KEY_PIN, pin);
           localStorage.setItem(STORAGE_KEY_REMEMBER, "true");
         }
-        setAnggotaInfo({ nama: data.nama, gred: data.gred, anggota_id: data.anggota_id });
+        const newAnggotaInfo = { nama: data.nama, gred: data.gred, anggota_id: data.anggota_id };
+        setAnggotaInfo(newAnggotaInfo);
         const activeResponse = await fetch(`/api/bantuan/aktif?anggota_id=${data.anggota_id}`);
         const activeData = await activeResponse.json();
         if (activeData.active && activeData.data) {
-          setActiveBantuan({
+          const activeObj = {
             record_id: activeData.data.record_id,
             bantuan_start: activeData.data.bantuan_start,
             remark: activeData.data.remark,
             lokasi: activeData.data.lokasi,
             kategori: activeData.data.kategori,
             sub_kategori: activeData.data.sub_kategori,
-          });
+          };
+          setActiveBantuan(activeObj);
+          localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(activeObj));
+          localStorage.setItem(STORAGE_KEY_ANGGOTA_INFO, JSON.stringify(newAnggotaInfo));
           setStep("active");
         } else {
           setStep("form");
@@ -166,14 +206,19 @@ export default function BantuanPage() {
       });
       const data = await response.json();
       if (data.success) {
-        setActiveBantuan({
+        const activeObj = {
           record_id: data.data.record_id,
           bantuan_start: new Date().toISOString(),
           remark,
           lokasi: lokasiSebenar,
           kategori,
           sub_kategori: subKategori,
-        });
+        };
+        setActiveBantuan(activeObj);
+        localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(activeObj));
+        if (anggotaInfo) {
+          localStorage.setItem(STORAGE_KEY_ANGGOTA_INFO, JSON.stringify(anggotaInfo));
+        }
         setStep("active");
       } else {
         setError(data.message || "Gagal memulakan aktiviti / bantuan");
@@ -196,7 +241,9 @@ export default function BantuanPage() {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccessData({ duration_min: data.data.duration_min });
+        setSuccessData({ duration_min: data.data.duration_min, warning: data.data.warning_msg });
+        localStorage.removeItem(STORAGE_KEY_ACTIVE);
+        localStorage.removeItem(STORAGE_KEY_ANGGOTA_INFO);
         setStep("success");
       } else {
         setError(data.message || "Gagal menamatkan aktiviti / bantuan");
@@ -220,12 +267,17 @@ export default function BantuanPage() {
     setElapsedTime(0);
     setError("");
     setSuccessData(null);
+    setIsOverdue(false);
+    localStorage.removeItem(STORAGE_KEY_ACTIVE);
+    localStorage.removeItem(STORAGE_KEY_ANGGOTA_INFO);
   };
 
   const clearSavedCredentials = () => {
     localStorage.removeItem(STORAGE_KEY_ANGGOTA);
     localStorage.removeItem(STORAGE_KEY_PIN);
     localStorage.removeItem(STORAGE_KEY_REMEMBER);
+    localStorage.removeItem(STORAGE_KEY_ACTIVE);
+    localStorage.removeItem(STORAGE_KEY_ANGGOTA_INFO);
     setAnggotaId("");
     setPin("");
     setRememberPin(false);
@@ -415,7 +467,12 @@ export default function BantuanPage() {
               </div>
               <div className="text-center py-6">
                 <p className="text-sm text-slate-600 mb-2">Masa Berlalu</p>
-                <div className="timer-display">{formatTime(elapsedTime)}</div>
+                <div className={`timer-display ${isOverdue ? 'text-red-600' : ''}`}>{formatTime(elapsedTime)}</div>
+                {isOverdue && (
+                  <p className="text-sm text-red-600 mt-2 bg-red-50 p-2 rounded border border-red-200">
+                    Amaran: Aktiviti ini telah melepasi 12 tengah malam dan masa akan dipotong secara automatik pada sistem. Sila tamatkan tugas.
+                  </p>
+                )}
               </div>
               <div className="p-4 bg-blue-50 rounded-lg space-y-2">
                 {activeBantuan.lokasi && (
@@ -455,6 +512,11 @@ export default function BantuanPage() {
               <div className="p-4 bg-slate-100 rounded-lg">
                 <p className="text-sm text-slate-600 mb-1">Jumlah Durasi</p>
                 <p className="text-2xl font-bold text-slate-800">{successData.duration_min} minit</p>
+                {successData.warning && (
+                  <p className="text-sm text-amber-600 mt-2 bg-amber-50 p-2 rounded text-left border border-amber-200">
+                    ⚠️ {successData.warning}
+                  </p>
+                )}
               </div>
               <button type="button" className="btn-primary w-full" onClick={resetForm}>
                 Rekod Lain

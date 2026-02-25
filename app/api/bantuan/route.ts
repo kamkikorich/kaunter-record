@@ -114,6 +114,19 @@ export async function POST(request: NextRequest) {
       // Tamat bantuan
       const result = await appendBantuanEndRecord(anggota, activeBantuan);
 
+      // Semak jika terdapat amaran dari backend (contohnya potong masa 12 malam)
+      if (result.warning) {
+        return NextResponse.json({
+          success: true,
+          message: 'Aktiviti / bantuan ditamatkan dengan amaran',
+          data: {
+            record_id: result.recordId,
+            duration_min: result.durationMin,
+            warning_msg: result.warning,
+          },
+        });
+      }
+
       // Validasi durasi minimum
       const durationValidation = validateBantuanDuration(result.durationMin);
       if (!durationValidation.valid) {
@@ -124,7 +137,7 @@ export async function POST(request: NextRequest) {
           data: {
             record_id: result.recordId,
             duration_min: result.durationMin,
-            warning: true,
+            warning_msg: durationValidation.error,
           },
         });
       }
