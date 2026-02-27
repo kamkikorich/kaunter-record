@@ -59,7 +59,7 @@ export default function BantuanPage() {
     const savedAnggotaId = localStorage.getItem(STORAGE_KEY_ANGGOTA);
     const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
     const savedRemember = localStorage.getItem(STORAGE_KEY_REMEMBER) === "true";
-    
+
     const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
     const savedInfo = localStorage.getItem(STORAGE_KEY_ANGGOTA_INFO);
 
@@ -100,7 +100,7 @@ export default function BantuanPage() {
       interval = setInterval(() => {
         const start = new Date(activeBantuan.bantuan_start);
         const now = new Date();
-        
+
         if (
           start.getDate() !== now.getDate() ||
           start.getMonth() !== now.getMonth() ||
@@ -246,7 +246,18 @@ export default function BantuanPage() {
         localStorage.removeItem(STORAGE_KEY_ANGGOTA_INFO);
         setStep("success");
       } else {
-        setError(data.message || "Gagal menamatkan aktiviti / bantuan");
+        // Semak jika ralat berpunca kerana sesi terbiar/dijumpai sudah tamat (termasuk kes midnight purge backend manual jika ada)
+        if (data.message && data.message.includes("Tiada aktiviti aktif")) {
+          // Paksa reset sesi dan bawa pengguna balik ke skrin PIN
+          clearSavedCredentials();
+          resetForm();
+          // Gunakan set timeout pendek supaya reset form rendering berlaku sebelum alert dipaparkan
+          setTimeout(() => {
+            alert("Aktiviti anda didapati sudah ditamatkan oleh sistem (mungkin kerana melepasi had masa). Sila log masuk semula.");
+          }, 100);
+        } else {
+          setError(data.message || "Gagal menamatkan aktiviti / bantuan");
+        }
       }
     } catch {
       setError("Ralat sistem. Sila cuba lagi.");
@@ -455,6 +466,12 @@ export default function BantuanPage() {
                   {loading ? "Memproses..." : "Mulakan Aktiviti / Bantuan"}
                 </button>
               </div>
+
+              <div className="pt-4 mt-2 border-t border-slate-200">
+                <button type="button" onClick={() => { clearSavedCredentials(); resetForm(); }} className="text-sm text-red-600 hover:underline w-full text-center">
+                  Keluar (Tukar Anggota)
+                </button>
+              </div>
             </form>
           )}
 
@@ -499,6 +516,21 @@ export default function BantuanPage() {
               <button type="button" className="btn-danger w-full" onClick={handleEndBantuan} disabled={loading}>
                 {loading ? "Memproses..." : "Tamatkan Aktiviti / Bantuan"}
               </button>
+
+              <div className="pt-4 mt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Langkah ini akan membuang memori sesi tempatan sahaja. Sebarang aktiviti aktif belum ditamatkan di dalam sistem pangkalan data berpusat. Adakah anda pasti mahu log keluar ketika ada aktiviti sedang berjalan? Anda perlu log masuk semula untuk menamatkan aktiviti ini nanti.")) {
+                      clearSavedCredentials();
+                      resetForm();
+                    }
+                  }}
+                  className="text-sm text-red-600 hover:underline w-full text-center"
+                >
+                  Log Keluar (Tukar Anggota)
+                </button>
+              </div>
             </div>
           )}
 

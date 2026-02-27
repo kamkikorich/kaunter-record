@@ -34,10 +34,27 @@ function getSpreadsheetId(): string {
   return spreadsheetId;
 }
 
+// --- IN-MEMORY CACHE UNTUK ANGGOTA ---
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minit
+let anggotaCache: {
+  data: Anggota[] | null;
+  lastFetch: number;
+} = {
+  data: null,
+  lastFetch: 0,
+};
+
 /**
- * Dapatkan semua anggota dari sheet ANGGOTA
+ * Dapatkan semua anggota dari sheet ANGGOTA (dengan Cache 5 Minit)
  */
-export async function getAllAnggota(): Promise<Anggota[]> {
+export async function getAllAnggota(forceRefresh = false): Promise<Anggota[]> {
+  const now = Date.now();
+
+  // Kembalikan dari cache jika masih sah dan tidak dipaksa refresh
+  if (!forceRefresh && anggotaCache.data && now - anggotaCache.lastFetch < CACHE_TTL_MS) {
+    return anggotaCache.data;
+  }
+
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = getSpreadsheetId();
 
@@ -48,7 +65,7 @@ export async function getAllAnggota(): Promise<Anggota[]> {
 
   const rows = response.data.values || [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return rows.map((row: any[]) => ({
+  const result = rows.map((row: any[]) => ({
     anggota_id: row[0] || '',
     nama: row[1] || '',
     gred: row[2] || '',
@@ -56,6 +73,14 @@ export async function getAllAnggota(): Promise<Anggota[]> {
     pin_hash: row[4] || '',   // Column E - hashed PIN for verification
     status: (row[5] || 'AKTIF') as 'AKTIF' | 'TIDAK_AKTIF',
   })).filter((a: Anggota) => a.anggota_id && a.status === 'AKTIF');
+
+  // Simpan dalam cache
+  anggotaCache = {
+    data: result,
+    lastFetch: now,
+  };
+
+  return result;
 }
 
 /**
