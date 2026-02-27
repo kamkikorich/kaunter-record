@@ -397,11 +397,15 @@ export async function appendBantuanEndRecord(
     const midnight = new Date(startDate);
     midnight.setHours(23, 59, 59, 999);
     finalEndTime = midnight.getTime();
-    finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + '[TERLUPA MATIKAN TUGASAN]';
+    finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + '[SISTEM: Aktiviti melepasi 12 tengah malam - masa dipotong automatik]';
     isCrossedMidnight = true;
   }
 
-  const durationMin = Math.max(1, Math.round((finalEndTime - startDate.getTime()) / (1000 * 60)));
+  // Kira durasi dalam minit dengan 2 tempat perpuluhan untuk ketepatan
+  // Sistem kini merekod masa dengan tepat termasuk aktiviti bawah 1 minit
+  // Contoh: 30 saat = 0.5 minit, 45 saat = 0.75 minit, 90 saat = 1.5 minit
+  const durationSeconds = (finalEndTime - startDate.getTime()) / 1000;
+  const durationMin = Math.round(durationSeconds / 60 * 100) / 100; // 2 decimal places
 
   const payload = {
     jenis: 'BANTUAN_END',
@@ -456,7 +460,7 @@ export async function appendBantuanEndRecord(
     recordId,
     success: true,
     durationMin,
-    warning: isCrossedMidnight ? "Aktiviti melebihi 12 tengah malam. Masa dipotong dan direkod '[TERLUPA MATIKAN TUGASAN]'." : undefined
+    warning: isCrossedMidnight ? "⚠️ Aktiviti melepasi 12 tengah malam. Sistem telah memotong masa kepada 23:59:59 pada hari yang sama untuk ketepatan rekod." : undefined
   };
 }
 

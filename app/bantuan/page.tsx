@@ -486,8 +486,8 @@ export default function BantuanPage() {
                 <p className="text-sm text-slate-600 mb-2">Masa Berlalu</p>
                 <div className={`timer-display ${isOverdue ? 'text-red-600' : ''}`}>{formatTime(elapsedTime)}</div>
                 {isOverdue && (
-                  <p className="text-sm text-red-600 mt-2 bg-red-50 p-2 rounded border border-red-200">
-                    Amaran: Aktiviti ini telah melepasi 12 tengah malam dan masa akan dipotong secara automatik pada sistem. Sila tamatkan tugas.
+                  <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded border border-red-200">
+                    ⚠️ <strong>Perhatian:</strong> Aktiviti ini telah melepasi 12 tengah malam. Sistem akan memotong masa secara automatik kepada 23:59:59 hari yang sama apabila anda menamatkan aktiviti.
                   </p>
                 )}
               </div>
@@ -543,10 +543,15 @@ export default function BantuanPage() {
               </div>
               <div className="p-4 bg-slate-100 rounded-lg">
                 <p className="text-sm text-slate-600 mb-1">Jumlah Durasi</p>
-                <p className="text-2xl font-bold text-slate-800">{successData.duration_min} minit</p>
+                <p className="text-2xl font-bold text-slate-800">
+                  {successData.duration_min >= 1 
+                    ? `${successData.duration_min.toFixed(2)} minit`
+                    : `${Math.round(successData.duration_min * 60)} saat`
+                  }
+                </p>
                 {successData.warning && (
                   <p className="text-sm text-amber-600 mt-2 bg-amber-50 p-2 rounded text-left border border-amber-200">
-                    ⚠️ {successData.warning}
+                    {successData.warning}
                   </p>
                 )}
               </div>

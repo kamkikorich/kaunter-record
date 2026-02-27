@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       const existingActive = await getBantuanAktif(anggota_id);
       if (existingActive) {
         return NextResponse.json(
-          { success: false, message: 'Anda sudah mempunyai aktiviti aktif. Tamatkan dahulu sebelum memulakan yang baru.' },
+          { success: false, message: '⚠️ Anda sudah mempunyai satu aktiviti sedang berjalan. Sila tamatkan aktiviti tersebut dahulu sebelum memulakan yang baru.' },
           { status: 409 }
         );
       }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: 'Aktiviti / bantuan dimulakan',
+        message: '✅ Aktiviti/bantuan berjaya dimulakan! Masa mula direkodkan.',
         data: {
           record_id: result.recordId,
         },
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       if (result.warning) {
         return NextResponse.json({
           success: true,
-          message: 'Aktiviti / bantuan ditamatkan dengan amaran',
+          message: '✅ Aktiviti/bantuan berjaya ditamatkan dengan nota penting',
           data: {
             record_id: result.recordId,
             duration_min: result.durationMin,
@@ -130,10 +130,10 @@ export async function POST(request: NextRequest) {
       // Validasi durasi minimum
       const durationValidation = validateBantuanDuration(result.durationMin);
       if (!durationValidation.valid) {
-        // Masih rekodkan, tapi beri amaran
+        // Masih rekodkan, tapi beri amaran yang lebih mesra
         return NextResponse.json({
           success: true,
-          message: `Aktiviti / bantuan ditamatkan. ${durationValidation.error}`,
+          message: `✅ Aktiviti/bantuan berjaya ditamatkan. ${durationValidation.error}`,
           data: {
             record_id: result.recordId,
             duration_min: result.durationMin,
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: 'Aktiviti / bantuan ditamatkan',
+        message: '✅ Aktiviti/bantuan berjaya ditamatkan dan direkodkan!',
         data: {
           record_id: result.recordId,
           duration_min: result.durationMin,

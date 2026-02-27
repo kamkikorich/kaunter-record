@@ -56,11 +56,16 @@ export default function AdminDashboardPage() {
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins = Math.floor(minutes % 60);
+    const secs = Math.round((minutes % 1) * 60);
+    
     if (hours > 0) {
       return `${hours}j ${mins}m`;
     }
-    return `${mins}m`;
+    if (mins > 0) {
+      return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    }
+    return `${secs}s`;
   };
 
   if (loading) {

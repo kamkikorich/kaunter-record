@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const exists = await checkKehadiranExists(anggota_id, tarikh, sesi);
     if (exists) {
       return NextResponse.json(
-        { success: false, message: `Kehadiran untuk sesi ${sesi} sudah direkodkan hari ini` },
+        { success: false, message: `ℹ️ Kehadiran untuk sesi ${sesi} telah pun direkodkan pada hari ini. Setiap sesi hanya boleh direkod sekali sahaja.` },
         { status: 409 }
       );
     }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Kehadiran berjaya direkodkan',
+      message: '✅ Kehadiran berjaya direkodkan! Terima kasih kerana hadir bertugas.',
       data: {
         record_id: result.recordId,
         tarikh,

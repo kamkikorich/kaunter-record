@@ -24,11 +24,14 @@ export function validateSesi(sesi: string): { valid: boolean; error?: string } {
  */
 export function validateRemark(remark: string): { valid: boolean; error?: string } {
   if (!remark || remark.trim().length === 0) {
-    return { valid: false, error: 'Keterangan bantuan diperlukan' };
+    return { valid: false, error: '📝 Keterangan aktiviti diperlukan untuk dokumentasi yang lengkap' };
   }
 
   if (remark.trim().length < VALIDATION_RULES.MIN_REMARK_LENGTH) {
-    return { valid: false, error: `Keterangan mesti sekurang-kurangnya ${VALIDATION_RULES.MIN_REMARK_LENGTH} aksara` };
+    return { 
+      valid: false, 
+      error: `📝 Keterangan terlalu pendek. Sila berikan butiran yang lebih terperinci (sekurang-kurangnya ${VALIDATION_RULES.MIN_REMARK_LENGTH} aksara)` 
+    };
   }
 
   return { valid: true };
@@ -40,7 +43,10 @@ export function validateRemark(remark: string): { valid: boolean; error?: string
  */
 export function validateBantuanDuration(durationMin: number): { valid: boolean; error?: string } {
   if (durationMin < VALIDATION_RULES.MIN_BANTUAN_DURATION_MIN) {
-    return { valid: false, error: `Durasi bantuan mesti sekurang-kurangnya ${VALIDATION_RULES.MIN_BANTUAN_DURATION_MIN} minit` };
+    return { 
+      valid: false, 
+      error: `⏱️ Aktiviti terlalu singkat! Durasi minimum yang disyorkan adalah ${VALIDATION_RULES.MIN_BANTUAN_DURATION_MIN} minit untuk memastikan sumbangan bermakna direkodkan.` 
+    };
   }
 
   return { valid: true };
