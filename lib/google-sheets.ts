@@ -401,7 +401,7 @@ export async function appendBantuanEndRecord(
     isCrossedMidnight = true;
   }
 
-  const durationMin = Math.round((finalEndTime - startDate.getTime()) / (1000 * 60));
+  const durationMin = Math.max(1, Math.round((finalEndTime - startDate.getTime()) / (1000 * 60)));
 
   const payload = {
     jenis: 'BANTUAN_END',
