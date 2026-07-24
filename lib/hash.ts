@@ -41,10 +41,11 @@ export function getServerTimestamp(): string {
 }
 
 /**
- * Ambil tarikh semasa dalam format YYYY-MM-DD
+ * Ambil tarikh semasa dalam format YYYY-MM-DD mengikut zon waktu Malaysia (GMT+8)
  */
 export function getCurrentDate(): string {
-  return new Date().toISOString().split('T')[0];
+  // Menggunakan locale 'sv-SE' (Swedish) yang mengembalikan format ISO YYYY-MM-DD dengan zon waktu Malaysia
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Kuala_Lumpur' });
 }
 
 /**
