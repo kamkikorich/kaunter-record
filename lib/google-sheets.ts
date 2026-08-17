@@ -1,10 +1,9 @@
 // Sistem Rekod Kehadiran & Bantuan Kaunter
 // Operasi Google Sheets
 
-// @ts-ignore - googleapis lacks exports.types field; incompatible with moduleResolution:bundler at IDE level only; build works correctly
 import { google } from 'googleapis';
 import type { Anggota, LogRecord } from './types';
-import { SHEET_NAMES, ANGGOTA_COLUMNS, LOG_COLUMNS, GENESIS_HASH } from './constants';
+import { SHEET_NAMES, GENESIS_HASH } from './constants';
 import { generateRecordHash, generateRecordId, getServerTimestamp, getCurrentDate } from './hash';
 
 /**

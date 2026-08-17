@@ -72,7 +72,7 @@ export function verifyHashChain(records: Array<{
     }
 
     // Verify hash integrity
-    const { hash, prev_hash, record_id, server_ts, ...payload } = record;
+    const { hash: _hash, prev_hash, record_id, server_ts, ...payload } = record;
     const computedHash = generateRecordHash(prev_hash, record_id, server_ts, payload);
 
     if (record.hash !== computedHash) {

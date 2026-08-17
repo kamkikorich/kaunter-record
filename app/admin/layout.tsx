@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function AdminLayout({
@@ -130,12 +131,12 @@ export default function AdminLayout({
             Admin Dashboard
           </h1>
           <div className="flex items-center gap-4">
-            <a
+            <Link
               href="/"
               className="text-sm text-blue-600 hover:underline"
             >
               Laman Utama
-            </a>
+            </Link>
             <button
               onClick={handleLogout}
               className="text-sm text-red-600 hover:underline"

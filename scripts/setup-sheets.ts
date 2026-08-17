@@ -10,11 +10,9 @@ import * as path from 'path';
 
 // Load credentials from JSON file (more reliable than env vars for private key)
 const KEY_FILE_PATH = path.resolve(__dirname, '../../perkeso-keningau-qr-fb9465d9879f.json');
-const SHEETS_ID_FILE = path.resolve(__dirname, '../.sheets-id');
 
 // Get spreadsheet ID from environment or file
 const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID || '1HEXrd6bydGYCcEwUqu-ftQVf5mhrVkwy7cDzwal03no';
-const HASH_SALT = process.env.HASH_SALT || 'PerkesoSecureSalt2026';
 const PIN_SALT = process.env.PIN_SALT || 'PerkesoPinSalt2026';
 
 // Data anggota
