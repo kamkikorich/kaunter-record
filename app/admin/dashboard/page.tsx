@@ -7,8 +7,28 @@ type AnggotaStats = {
   nama: string;
   gred: string;
   jumlah_kehadiran: number;
+  hadir_pagi: number;
+  hadir_petang: number;
   jumlah_bantuan: number;
   total_durasi_min: number;
+  jumlah_tugasan: number;
+  total_durasi_tugasan_min: number;
+};
+
+type RekodAnggota = {
+  record_id: string;
+  server_ts: string;
+  jenis: string;
+  tarikh: string;
+  sesi: string;
+  nama: string;
+  remark: string;
+  bantuan_start: string;
+  bantuan_end: string;
+  durasi_min: number;
+  lokasi: string;
+  kategori: string;
+  sub_kategori: string;
 };
 
 export default function AdminDashboardPage() {
@@ -20,6 +40,10 @@ export default function AdminDashboardPage() {
     total_records: number;
     message: string;
   } | null>(null);
+  const [selectedAnggota, setSelectedAnggota] = useState<AnggotaStats | null>(null);
+  const [rekodDetail, setRekodDetail] = useState<RekodAnggota[] | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   useEffect(() => {
     fetchDashboardData();
@@ -66,6 +90,56 @@ export default function AdminDashboardPage() {
       return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
     }
     return `${secs}s`;
+  };
+
+  const loadRekodAnggota = async (anggota: AnggotaStats) => {
+    setSelectedAnggota(anggota);
+    setRekodDetail(null);
+    setDetailLoading(true);
+    setDetailError("");
+
+    try {
+      const response = await fetch(`/api/admin/statistik/anggota?anggota_id=${anggota.anggota_id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setRekodDetail(data.data?.rekod || []);
+      } else {
+        setDetailError("Gagal memuatkan rekod anggota");
+      }
+    } catch {
+      setDetailError("Ralat sistem");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetail = () => {
+    setSelectedAnggota(null);
+    setRekodDetail(null);
+    setDetailError("");
+  };
+
+  const formatDateTime = (iso: string) => {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    return d.toLocaleString("ms-MY", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const jenisLabel = (jenis: string) => {
+    switch (jenis) {
+      case "KEHADIRAN": return "⏰ Kehadiran";
+      case "BANTUAN_START": return "💬 Bantuan Mula";
+      case "BANTUAN_END": return "💬 Bantuan Tamat";
+      case "TUGASAN_START": return "🚗 Tugasan Mula";
+      case "TUGASAN_END": return "🚗 Tugasan Tamat";
+      default: return jenis;
+    }
   };
 
   if (loading) {
@@ -132,7 +206,16 @@ export default function AdminDashboardPage() {
                     Bantuan
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-slate-600">
-                    Jumlah Masa
+                    Masa Bantuan
+                  </th>
+                  <th className="text-center py-3 px-4 font-medium text-slate-600">
+                    Tugasan Luar
+                  </th>
+                  <th className="text-center py-3 px-4 font-medium text-slate-600">
+                    Masa Tugasan
+                  </th>
+                  <th className="text-center py-3 px-4 font-medium text-slate-600">
+                    Semak
                   </th>
                 </tr>
               </thead>
@@ -157,6 +240,9 @@ export default function AdminDashboardPage() {
                       <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
                         {anggota.jumlah_kehadiran}
                       </span>
+                      <span className="block text-xs text-slate-500 mt-0.5">
+                        {anggota.hadir_pagi}p · {anggota.hadir_petang}pt
+                      </span>
                     </td>
                     <td className="py-3 px-4 text-center">
                       <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium">
@@ -166,6 +252,22 @@ export default function AdminDashboardPage() {
                     <td className="py-3 px-4 text-center text-slate-800 font-medium">
                       {formatDuration(anggota.total_durasi_min)}
                     </td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
+                        {anggota.jumlah_tugasan}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center text-slate-800 font-medium">
+                      {formatDuration(anggota.total_durasi_tugasan_min)}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => loadRekodAnggota(anggota)}
+                        className="text-xs text-blue-600 hover:underline font-medium"
+                      >
+                        📋 Semak Rekod
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -173,6 +275,79 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Panel Detail Anggota (Drill-down) */}
+      {selectedAnggota && (
+        <div className="card border-blue-300">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">
+                📋 Rekod {selectedAnggota.nama}
+              </h2>
+              <p className="text-sm text-slate-600">
+                {selectedAnggota.gred} | {selectedAnggota.anggota_id}
+              </p>
+            </div>
+            <button
+              onClick={closeDetail}
+              className="text-sm text-red-600 hover:underline"
+            >
+              ✕ Tutup
+            </button>
+          </div>
+
+          {detailLoading ? (
+            <p className="text-slate-600 text-center py-6">Memuatkan rekod...</p>
+          ) : detailError ? (
+            <div className="status-error text-sm">{detailError}</div>
+          ) : rekodDetail && rekodDetail.length === 0 ? (
+            <p className="text-slate-600 text-center py-6">Tiada rekod untuk anggota ini</p>
+          ) : rekodDetail ? (
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white">
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-2 px-3 font-medium text-slate-600">Tarikh</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-600">Jenis</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-600">Sesi</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-600">Keterangan</th>
+                    <th className="text-center py-2 px-3 font-medium text-slate-600">Masa</th>
+                    <th className="text-center py-2 px-3 font-medium text-slate-600">Durasi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rekodDetail.map((r) => (
+                    <tr key={r.record_id} className="border-b border-slate-100">
+                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">{r.tarikh}</td>
+                      <td className="py-2 px-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          r.jenis === "KEHADIRAN"
+                            ? "bg-blue-100 text-blue-800"
+                            : r.jenis.includes("BANTUAN")
+                              ? "bg-green-100 text-green-800"
+                              : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {jenisLabel(r.jenis)}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-slate-600">{r.sesi || "-"}</td>
+                      <td className="py-2 px-3 text-slate-600 max-w-xs truncate" title={r.remark}>
+                        {r.remark || "-"}
+                      </td>
+                      <td className="py-2 px-3 text-slate-500 whitespace-nowrap text-xs">
+                        {r.jenis.includes("END") ? formatDateTime(r.bantuan_end) : formatDateTime(r.bantuan_start)}
+                      </td>
+                      <td className="py-2 px-3 text-center text-slate-800 font-medium whitespace-nowrap">
+                        {r.jenis.includes("END") ? formatDuration(r.durasi_min) : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Refresh Button */}
       <div className="text-center">

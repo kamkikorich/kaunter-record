@@ -26,8 +26,12 @@ export async function GET() {
     // Kira statistik untuk setiap anggota
     const statistik = anggotaList.map((anggota) => {
       let jumlahKehadiran = 0;
+      let hadirPagi = 0;
+      let hadirPetang = 0;
       let jumlahBantuan = 0;
       let totalDurasiMin = 0;
+      let jumlahTugasan = 0;
+      let totalDurasiTugasanMin = 0;
 
       for (const record of records) {
         if (record.anggota_id !== anggota.anggota_id || record.status !== 'AKTIF') {
@@ -36,9 +40,14 @@ export async function GET() {
 
         if (record.jenis === 'KEHADIRAN') {
           jumlahKehadiran++;
+          if (record.sesi === 'PAGI') hadirPagi++;
+          else if (record.sesi === 'PETANG') hadirPetang++;
         } else if (record.jenis === 'BANTUAN_END') {
           jumlahBantuan++;
           totalDurasiMin += record.durasi_min || 0;
+        } else if (record.jenis === 'TUGASAN_END') {
+          jumlahTugasan++;
+          totalDurasiTugasanMin += record.durasi_min || 0;
         }
       }
 
@@ -47,8 +56,12 @@ export async function GET() {
         nama: anggota.nama,
         gred: anggota.gred,
         jumlah_kehadiran: jumlahKehadiran,
+        hadir_pagi: hadirPagi,
+        hadir_petang: hadirPetang,
         jumlah_bantuan: jumlahBantuan,
         total_durasi_min: totalDurasiMin,
+        jumlah_tugasan: jumlahTugasan,
+        total_durasi_tugasan_min: totalDurasiTugasanMin,
       };
     });
 
