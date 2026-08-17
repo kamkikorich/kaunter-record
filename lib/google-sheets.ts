@@ -11,10 +11,16 @@ import { generateRecordHash, generateRecordId, getServerTimestamp, getCurrentDat
  * Dapatkan klien Google Sheets
  */
 async function getGoogleSheetsClient() {
+  let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
+  privateKey = privateKey.replace(/\\n/g, '\n');
+  if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+    privateKey = privateKey.slice(1, -1);
+  }
+
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      private_key: privateKey,
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
