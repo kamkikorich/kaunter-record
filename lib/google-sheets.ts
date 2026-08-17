@@ -39,6 +39,73 @@ function getSpreadsheetId(): string {
   return spreadsheetId;
 }
 
+// ===== FORMAT TARIKH GOOGLE SHEETS =====
+// Google Sheets simpan tarikh sebagai serial number (hari sejak 1899-12-30).
+// Sistem tulis tarikh sebagai serial number supaya kolum D adalah format DATE
+// sebenar (boleh sort/filter), dan convert balik ke "YYYY-MM-DD" bila baca
+// supaya hash chain dan logik perbandingan kekal sama.
+
+const GOOGLE_SHEETS_EPOCH_OFFSET = 25569; // 1970-01-01 = serial 25569
+
+/** Convert "YYYY-MM-DD" ke serial number Google Sheets */
+function dateToSerial(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return Date.UTC(y, m - 1, d) / 86400000 + GOOGLE_SHEETS_EPOCH_OFFSET;
+}
+
+/** Convert nilai sel tarikh (serial number ATAU string) ke "YYYY-MM-DD" */
+function parseDateCell(value: unknown): string {
+  if (typeof value === 'number' && isFinite(value)) {
+    return new Date((value - GOOGLE_SHEETS_EPOCH_OFFSET) * 86400000).toISOString().slice(0, 10);
+  }
+  return String(value || '');
+}
+
+// Pastikan kolum D (tarikh) berformat DATE supaya serial number dipaparkan
+// sebagai tarikh (cth. 17/08/2026), bukan nombor mentah (46252).
+// Idempotent - selamat dipanggil setiap kali append.
+let dateFormatEnsured = false;
+async function ensureDateColumnFormat(): Promise<void> {
+  if (dateFormatEnsured) return; // Hanya sekali per proses
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  // Cari sheetId sebenar untuk sheet LOG (bukan andaian 0)
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets.properties(sheetId,title)',
+  });
+  const logSheet = meta.data.sheets?.find((s) => s.properties?.title === SHEET_NAMES.LOG);
+  if (!logSheet?.properties?.sheetId) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          repeatCell: {
+            range: {
+              sheetId: logSheet.properties.sheetId,
+              startColumnIndex: 3, // Kolum D
+              endColumnIndex: 4,
+            },
+            cell: {
+              userEnteredFormat: {
+                numberFormat: {
+                  type: 'DATE',
+                  pattern: 'dd/mm/yyyy',
+                },
+              },
+            },
+            fields: 'userEnteredFormat.numberFormat',
+          },
+        },
+      ],
+    },
+  });
+  dateFormatEnsured = true;
+}
+
 // --- IN-MEMORY CACHE UNTUK ANGGOTA ---
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minit
 let anggotaCache: {
@@ -176,7 +243,7 @@ export async function appendKehadiranRecord(
     recordId,
     serverTs,
     'KEHADIRAN',
-    tarikh,
+    dateToSerial(tarikh), // D: tarikh sebagai serial number (format DATE sebenar)
     sesi,
     anggota.anggota_id,
     anggota.nama,
@@ -190,6 +257,8 @@ export async function appendKehadiranRecord(
     'AKTIF',
     '', // ref_record_id
   ];
+
+  await ensureDateColumnFormat(); // Pastikan kolum D berformat DATE
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -223,7 +292,7 @@ export async function checkKehadiranExists(
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const jenis = row[2];
-    const rowTarikh = row[3];
+    const rowTarikh = parseDateCell(row[3]); // convert serial/string ke YYYY-MM-DD
     const rowSesi = row[4];
     const rowAnggotaId = row[5];
     const rowStatus = row[14];
@@ -282,7 +351,7 @@ export async function appendBantuanStartRecord(
     recordId,       // A: record_id
     serverTs,       // B: server_ts
     'BANTUAN_START',// C: jenis
-    tarikh,         // D: tarikh
+    dateToSerial(tarikh), // D: tarikh (serial number - format DATE)
     '',             // E: sesi
     anggota.anggota_id, // F: anggota_id
     anggota.nama,   // G: nama
@@ -299,6 +368,8 @@ export async function appendBantuanStartRecord(
     kategori,       // R: kategori
     sub_kategori,   // S: sub_kategori
   ];
+
+  await ensureDateColumnFormat(); // Pastikan kolum D berformat DATE
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -350,7 +421,7 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
           record_id: row[0],
           server_ts: row[1],
           jenis: 'BANTUAN_START',
-          tarikh: row[3],
+          tarikh: parseDateCell(row[3]), // convert serial/string ke YYYY-MM-DD
           anggota_id: row[5],
           nama: row[6],
           gred: row[7],
@@ -491,7 +562,7 @@ export async function appendBantuanEndRecord(
     recordId,                       // A
     serverTs,                       // B
     'BANTUAN_END',                  // C
-    tarikh,                         // D
+    dateToSerial(tarikh),           // D: tarikh (serial number - format DATE)
     '',                             // E: sesi
     anggota.anggota_id,             // F
     anggota.nama,                   // G
@@ -506,8 +577,10 @@ export async function appendBantuanEndRecord(
     startRecord.record_id,          // P: ref_record_id
     startRecord.lokasi || '',       // Q: lokasi
     startRecord.kategori || '',     // R: kategori
-    startRecord.sub_kategori || '',  // S: sub_kategori
+    startRecord.sub_kategori || '', // S: sub_kategori
   ];
+
+  await ensureDateColumnFormat(); // Pastikan kolum D berformat DATE
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -567,7 +640,7 @@ export async function appendTugasanStartRecord(
     recordId,          // A
     serverTs,          // B
     'TUGASAN_START',   // C
-    tarikh,            // D
+    dateToSerial(tarikh), // D: tarikh (serial number - format DATE)
     '',                // E: sesi
     anggota.anggota_id,// F
     anggota.nama,      // G
@@ -584,6 +657,8 @@ export async function appendTugasanStartRecord(
     kategori,          // R: kategori
     '',                // S
   ];
+
+  await ensureDateColumnFormat(); // Pastikan kolum D berformat DATE
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -634,7 +709,7 @@ export async function getTugasanAktif(anggotaId: string): Promise<LogRecord | nu
           record_id: row[0],
           server_ts: row[1],
           jenis: 'TUGASAN_START',
-          tarikh: row[3],
+          tarikh: parseDateCell(row[3]), // convert serial/string ke YYYY-MM-DD
           anggota_id: row[5],
           nama: row[6],
           gred: row[7],
@@ -766,7 +841,7 @@ export async function appendTugasanEndRecord(
     recordId,          // A
     serverTs,          // B
     'TUGASAN_END',     // C
-    tarikh,            // D
+    dateToSerial(tarikh), // D: tarikh (serial number - format DATE)
     '',                // E
     anggota.anggota_id,// F
     anggota.nama,      // G
@@ -783,6 +858,8 @@ export async function appendTugasanEndRecord(
     startRecord.kategori || '', // R
     '',                // S
   ];
+
+  await ensureDateColumnFormat(); // Pastikan kolum D berformat DATE
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -823,7 +900,7 @@ export async function getAllLogRecords(): Promise<LogRecord[]> {
     record_id: row[0] || '',
     server_ts: row[1] || '',
     jenis: row[2] as LogRecord['jenis'],
-    tarikh: row[3] || '',
+    tarikh: parseDateCell(row[3]), // convert serial/string ke YYYY-MM-DD
     sesi: row[4] || undefined,
     anggota_id: row[5] || '',
     nama: row[6] || '',
