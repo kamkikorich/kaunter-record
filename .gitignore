@@ -34,7 +34,10 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+# google service account keys (never commit)
 gen-lang-client-*.json
+perkeso-keningau-*.json
+*-service-account*.json
 *.json.key
 
 # vercel
