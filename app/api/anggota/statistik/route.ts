@@ -92,9 +92,18 @@ export async function POST(request: NextRequest) {
     const jumlahBantuanBulan = bantuanBulan.length;
     const totalDurasiBulanMin = bantuanBulan.reduce((sum, r) => sum + (r.durasi_min || 0), 0);
 
+    // Tugasan luar bulan ini
+    const tugasanBulan = myActive.filter(
+      (r) => r.jenis === 'TUGASAN_END' && r.tarikh >= firstOfMonth
+    );
+    const jumlahTugasanBulan = tugasanBulan.length;
+    const totalDurasiTugasanBulanMin = tugasanBulan.reduce((sum, r) => sum + (r.durasi_min || 0), 0);
+
     // Semua masa (sepanjang masa)
     const semuaBantuan = myActive.filter((r) => r.jenis === 'BANTUAN_END');
     const totalDurasiSemuaMin = semuaBantuan.reduce((sum, r) => sum + (r.durasi_min || 0), 0);
+    const semuaTugasan = myActive.filter((r) => r.jenis === 'TUGASAN_END');
+    const totalDurasiSemuaTugasanMin = semuaTugasan.reduce((sum, r) => sum + (r.durasi_min || 0), 0);
 
     // Kehadiran hari ini
     const hadirHariIni = {
@@ -220,10 +229,14 @@ export async function POST(request: NextRequest) {
             jumlah_kehadiran: jumlahKehadiranBulan,
             jumlah_bantuan: jumlahBantuanBulan,
             total_durasi_min: Math.round(totalDurasiBulanMin * 100) / 100,
+            jumlah_tugasan: jumlahTugasanBulan,
+            total_durasi_tugasan_min: Math.round(totalDurasiTugasanBulanMin * 100) / 100,
           },
           semua: {
             jumlah_bantuan: semuaBantuan.length,
             total_durasi_min: Math.round(totalDurasiSemuaMin * 100) / 100,
+            jumlah_tugasan: semuaTugasan.length,
+            total_durasi_tugasan_min: Math.round(totalDurasiSemuaTugasanMin * 100) / 100,
           },
           hari_ini: hadirHariIni,
           streak_hari: streak,

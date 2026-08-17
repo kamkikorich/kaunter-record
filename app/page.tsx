@@ -55,6 +55,25 @@ export default function HomePage() {
           </Link>
 
           <Link
+            href="/tugasan"
+            className="card block text-center hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
+          >
+            <div className="py-4">
+              <div className="text-4xl mb-3">
+                <span className="inline-block p-4 bg-amber-100 rounded-full group-hover:bg-amber-200 transition-colors">
+                  🚗
+                </span>
+              </div>
+              <h2 className="text-xl font-semibold text-slate-800 mb-2">
+                Rekod Tugasan Luar
+              </h2>
+              <p className="text-slate-600 text-sm">
+                Ops kesan, pameran, taklimat PERKESO, program luar
+              </p>
+            </div>
+          </Link>
+
+          <Link
             href="/dashboard"
             className="card block text-center hover:border-purple-300 hover:shadow-md transition-all cursor-pointer group"
           >

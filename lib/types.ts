@@ -53,6 +53,14 @@ export interface BantuanRequest {
   action: 'START' | 'END';
 }
 
+// Request untuk tugasan luar
+export interface TugasanRequest {
+  anggota_id: string;
+  remark: string;
+  kategori?: string;
+  action: 'START' | 'END';
+}
+
 // Response API standard
 export interface ApiResponse<T = unknown> {
   success: boolean;

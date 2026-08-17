@@ -112,6 +112,20 @@ Tidak dibenarkan aktiviti / bantuan bertindih
 
 Waktu operasi kaunter: 8:00 pagi - 5:00 petang. Aktiviti yang melepasi 5:30 petang dipotong automatik (rekod adil, elak masa diheret akibat terlupa menamatkan aktiviti)
 
+Had maksimum bantuan kaunter: 2 jam (bantuan biasa 3 minit - 1 jam)
+
+5.2b Tugasan Luar (selain kaunter)
+
+Ops kesan, pameran, taklimat PERKESO, program luar, gotong royong, kursus
+
+Anggota memilih nama, masukkan PIN, pilih kategori tugasan, isi remark
+
+Tekan "Mula" / "Tamat"
+
+Had masa: potong automatik pada 8 malam (20:00) atau had maksimum 12 jam
+
+Kategori: Ops Kesan / Siasatan, Pameran / Program Luar, Taklimat / Program PERKESO, Gotong Royong / Kerja Am, Kursus / Latihan, Lain-lain
+
 5.3 Dashboard
 
 Dashboard mesti memaparkan:

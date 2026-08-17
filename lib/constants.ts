@@ -4,7 +4,7 @@
 export const SESI = ['PAGI', 'PETANG'] as const;
 export type SesiType = (typeof SESI)[number];
 
-export const JENIS_REKOD = ['KEHADIRAN', 'BANTUAN_START', 'BANTUAN_END', 'CORRECTION'] as const;
+export const JENIS_REKOD = ['KEHADIRAN', 'BANTUAN_START', 'BANTUAN_END', 'TUGASAN_START', 'TUGASAN_END', 'CORRECTION'] as const;
 export type JenisRekodType = (typeof JENIS_REKOD)[number];
 
 export const STATUS_REKOD = ['AKTIF', 'DIBATALKAN'] as const;
@@ -85,6 +85,45 @@ export const WAKTU_OPERASI = {
   END_MINUTE: 30,
 } as const;
 
+// Had maksimum durasi bantuan: 2 jam (bantuan biasa 3 minit - 1 jam;
+// 2 jam cukup untuk program/aktiviti luar biasa). Lebih dari ini = terlupa tamatkan.
+export const MAX_BANTUAN_DURASI_MIN = 120;
+
 // Nota sistem untuk rekod yang dipotong automatik
 export const NOTA_POTONG_WAKTU =
   '[SISTEM: Aktiviti melepasi waktu operasi kaunter - masa dipotong automatik kepada 17:30]';
+
+// Nota sistem untuk rekod yang dipotong kerana melebihi had maksimum
+export const NOTA_POTONG_MAKS =
+  '[SISTEM: Aktiviti melebihi had maksimum 2 jam - masa dipotong automatik untuk rekod yang adil]';
+
+// ===== TUGASAN LUAR (selain kaunter) =====
+// Tugasan luar: ops kesan, pameran, taklimat PERKESO, program luar, dll.
+// Berlaku dari pagi hingga malam (~8 malam) - had berbeza dari bantuan kaunter
+
+// Waktu had tugasan luar: 8:00 malam (20:00)
+export const WAKTU_TUGASAN = {
+  END_HOUR: 20,
+  END_MINUTE: 0,
+} as const;
+
+// Had maksimum tugasan luar: 12 jam (keselamatan - elak rekod mustahil)
+export const MAX_TUGASAN_DURASI_MIN = 12 * 60;
+
+// Nota sistem untuk tugasan yang dipotong automatik
+export const NOTA_POTONG_TUGASAN_WAKTU =
+  '[SISTEM: Tugasan melepasi had 8 malam - masa dipotong automatik kepada 20:00]';
+
+export const NOTA_POTONG_TUGASAN_MAKS =
+  '[SISTEM: Tugasan melebihi had maksimum 12 jam - masa dipotong automatik untuk rekod yang adil]';
+
+// Kategori tugasan luar
+export const KATEGORI_TUGASAN_PILIHAN = [
+  'Ops Kesan / Siasatan',
+  'Pameran / Program Luar',
+  'Taklimat / Program PERKESO',
+  'Gotong Royong / Kerja Am',
+  'Kursus / Latihan',
+  'Lain-lain',
+] as const;
+export type KategoriTugasanType = (typeof KATEGORI_TUGASAN_PILIHAN)[number];

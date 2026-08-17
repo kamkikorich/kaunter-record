@@ -2,43 +2,32 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import {
-  LOKASI_PILIHAN,
-  KATEGORI_PILIHAN,
-  SUB_KATEGORI_PENDAFTARAN,
-} from "@/lib/constants";
+import { KATEGORI_TUGASAN_PILIHAN } from "@/lib/constants";
 
 const STORAGE_KEY_ANGGOTA = "rekod_anggota_id";
 const STORAGE_KEY_PIN = "rekod_pin";
 const STORAGE_KEY_REMEMBER = "rekod_remember_pin";
-const STORAGE_KEY_ACTIVE = "rekod_active_bantuan";
-const STORAGE_KEY_ANGGOTA_INFO = "rekod_anggota_info";
+const STORAGE_KEY_ACTIVE = "rekod_active_tugasan";
+const STORAGE_KEY_ANGGOTA_INFO = "rekod_anggota_info_tugasan";
 
-export default function BantuanPage() {
-  const [step, setStep] = useState<"pin" | "form" | "active" | "end" | "success">("pin");
+export default function TugasanPage() {
+  const [step, setStep] = useState<"pin" | "form" | "active" | "success">("pin");
   const [anggotaId, setAnggotaId] = useState("");
   const [pin, setPin] = useState("");
   const [rememberPin, setRememberPin] = useState(false);
   const [remark, setRemark] = useState("");
-
-  // Dropdown states
-  const [lokasi, setLokasi] = useState("");
-  const [lokasiLain, setLokasiLain] = useState("");
   const [kategori, setKategori] = useState("");
-  const [subKategori, setSubKategori] = useState("");
 
   const [anggotaInfo, setAnggotaInfo] = useState<{
     nama: string;
     gred: string;
     anggota_id: string;
   } | null>(null);
-  const [activeBantuan, setActiveBantuan] = useState<{
+  const [activeTugasan, setActiveTugasan] = useState<{
     record_id: string;
     bantuan_start: string;
     remark: string;
-    lokasi?: string;
     kategori?: string;
-    sub_kategori?: string;
   } | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -49,7 +38,7 @@ export default function BantuanPage() {
   } | null>(null);
   const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
   const [isOverdue, setIsOverdue] = useState(false);
-  const [overdueReason, setOverdueReason] = useState<"closing" | "midnight" | "max" | null>(null);
+  const [overdueReason, setOverdueReason] = useState<"malam" | "max" | "midnight" | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PIN);
@@ -75,7 +64,7 @@ export default function BantuanPage() {
         const parsedActive = JSON.parse(savedActive);
         const parsedInfo = JSON.parse(savedInfo);
         setAnggotaInfo(parsedInfo);
-        setActiveBantuan(parsedActive);
+        setActiveTugasan(parsedActive);
         setStep("active");
       } catch (e) {
         console.error("Failed to parse saved active state", e);
@@ -96,39 +85,36 @@ export default function BantuanPage() {
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
-    if (step === "active" && activeBantuan) {
+    if (step === "active" && activeTugasan) {
       setIsOverdue(false);
       setOverdueReason(null);
       interval = setInterval(() => {
-        const start = new Date(activeBantuan.bantuan_start);
+        const start = new Date(activeTugasan.bantuan_start);
         const now = new Date();
 
-        // Had maksimum durasi: 2 jam
-        const maxEnd = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+        // Had maksimum: 12 jam
+        const maxEnd = new Date(start.getTime() + 12 * 60 * 60 * 1000);
         const pastMax = now.getTime() > maxEnd.getTime();
 
-        // Had waktu operasi kaunter: 17:30 (30 minit selepas tutup 5:00 petang)
-        const closing = new Date(start);
-        closing.setHours(17, 30, 0, 0);
-        const pastClosing =
-          now.getTime() > closing.getTime() && start.getTime() < closing.getTime();
+        // Had 8 malam (20:00)
+        const hadMalam = new Date(start);
+        hadMalam.setHours(20, 0, 0, 0);
+        const pastMalam =
+          now.getTime() > hadMalam.getTime() && start.getTime() < hadMalam.getTime();
 
         if (pastMax) {
-          // Potong paparan pada 2 jam
-          setElapsedTime(2 * 60 * 60);
+          setElapsedTime(12 * 60 * 60);
           setIsOverdue(true);
           setOverdueReason("max");
-        } else if (pastClosing) {
-          // Potong paparan pada 17:30
-          setElapsedTime(Math.floor((closing.getTime() - start.getTime()) / 1000));
+        } else if (pastMalam) {
+          setElapsedTime(Math.floor((hadMalam.getTime() - start.getTime()) / 1000));
           setIsOverdue(true);
-          setOverdueReason("closing");
+          setOverdueReason("malam");
         } else if (
           start.getDate() !== now.getDate() ||
           start.getMonth() !== now.getMonth() ||
           start.getFullYear() !== now.getFullYear()
         ) {
-          // Crossed midnight. Limit calculation to 23:59:59 of start day.
           const midnight = new Date(start);
           midnight.setHours(23, 59, 59, 999);
           setElapsedTime(Math.floor((midnight.getTime() - start.getTime()) / 1000));
@@ -142,7 +128,7 @@ export default function BantuanPage() {
       }, 1000);
     }
     return () => { if (interval) clearInterval(interval); };
-  }, [step, activeBantuan]);
+  }, [step, activeTugasan]);
 
   const formatTime = useCallback((seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -151,18 +137,11 @@ export default function BantuanPage() {
     return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }, []);
 
-  // Nilai lokasi sebenar (gabung dengan teks manual jika Lain-lain)
-  const lokasiSebenar = lokasi === "Lain-lain" ? `Lain-lain: ${lokasiLain}` : lokasi;
-
-  // Validasi borang
   const isFormValid = useCallback(() => {
-    if (!lokasi) return false;
-    if (lokasi === "Lain-lain" && lokasiLain.trim().length === 0) return false;
     if (!kategori) return false;
-    if (kategori === "Pendaftaran" && !subKategori) return false;
     if (remark.trim().length < 20) return false;
     return true;
-  }, [lokasi, lokasiLain, kategori, subKategori, remark]);
+  }, [kategori, remark]);
 
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,18 +162,16 @@ export default function BantuanPage() {
         }
         const newAnggotaInfo = { nama: data.nama, gred: data.gred, anggota_id: data.anggota_id };
         setAnggotaInfo(newAnggotaInfo);
-        const activeResponse = await fetch(`/api/bantuan/aktif?anggota_id=${data.anggota_id}`);
+        const activeResponse = await fetch(`/api/tugasan/aktif?anggota_id=${data.anggota_id}`);
         const activeData = await activeResponse.json();
         if (activeData.active && activeData.data) {
           const activeObj = {
             record_id: activeData.data.record_id,
             bantuan_start: activeData.data.bantuan_start,
             remark: activeData.data.remark,
-            lokasi: activeData.data.lokasi,
             kategori: activeData.data.kategori,
-            sub_kategori: activeData.data.sub_kategori,
           };
-          setActiveBantuan(activeObj);
+          setActiveTugasan(activeObj);
           localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(activeObj));
           localStorage.setItem(STORAGE_KEY_ANGGOTA_INFO, JSON.stringify(newAnggotaInfo));
           setStep("active");
@@ -211,20 +188,18 @@ export default function BantuanPage() {
     }
   };
 
-  const handleStartBantuan = async (e: React.FormEvent) => {
+  const handleStartTugasan = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const response = await fetch("/api/bantuan", {
+      const response = await fetch("/api/tugasan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           anggota_id: anggotaInfo?.anggota_id,
           remark,
-          lokasi: lokasiSebenar,
           kategori,
-          sub_kategori: subKategori,
           action: "START",
         }),
       });
@@ -234,18 +209,16 @@ export default function BantuanPage() {
           record_id: data.data.record_id,
           bantuan_start: new Date().toISOString(),
           remark,
-          lokasi: lokasiSebenar,
           kategori,
-          sub_kategori: subKategori,
         };
-        setActiveBantuan(activeObj);
+        setActiveTugasan(activeObj);
         localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(activeObj));
         if (anggotaInfo) {
           localStorage.setItem(STORAGE_KEY_ANGGOTA_INFO, JSON.stringify(anggotaInfo));
         }
         setStep("active");
       } else {
-        setError(data.message || "Gagal memulakan aktiviti / bantuan");
+        setError(data.message || "Gagal memulakan tugasan luar");
       }
     } catch {
       setError("Ralat sistem. Sila cuba lagi.");
@@ -254,11 +227,11 @@ export default function BantuanPage() {
     }
   };
 
-  const handleEndBantuan = async () => {
+  const handleEndTugasan = async () => {
     setError("");
     setLoading(true);
     try {
-      const response = await fetch("/api/bantuan", {
+      const response = await fetch("/api/tugasan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ anggota_id: anggotaInfo?.anggota_id, action: "END" }),
@@ -270,17 +243,14 @@ export default function BantuanPage() {
         localStorage.removeItem(STORAGE_KEY_ANGGOTA_INFO);
         setStep("success");
       } else {
-        // Semak jika ralat berpunca kerana sesi terbiar/dijumpai sudah tamat (termasuk kes midnight purge backend manual jika ada)
-        if (data.message && data.message.includes("Tiada aktiviti aktif")) {
-          // Paksa reset sesi dan bawa pengguna balik ke skrin PIN
+        if (data.message && data.message.includes("Tiada tugasan aktif")) {
           clearSavedCredentials();
           resetForm();
-          // Gunakan set timeout pendek supaya reset form rendering berlaku sebelum alert dipaparkan
           setTimeout(() => {
-            alert("Aktiviti anda didapati sudah ditamatkan oleh sistem (mungkin kerana melepasi had masa). Sila log masuk semula.");
+            alert("Tugasan anda didapati sudah ditamatkan oleh sistem (mungkin kerana melepasi had masa). Sila log masuk semula.");
           }, 100);
         } else {
-          setError(data.message || "Gagal menamatkan aktiviti / bantuan");
+          setError(data.message || "Gagal menamatkan tugasan luar");
         }
       }
     } catch {
@@ -293,12 +263,9 @@ export default function BantuanPage() {
   const resetForm = () => {
     setStep("pin");
     setRemark("");
-    setLokasi("");
-    setLokasiLain("");
     setKategori("");
-    setSubKategori("");
     setAnggotaInfo(null);
-    setActiveBantuan(null);
+    setActiveTugasan(null);
     setElapsedTime(0);
     setError("");
     setSuccessData(null);
@@ -330,18 +297,11 @@ export default function BantuanPage() {
 
         <div className="card">
           <h1 className="text-2xl font-bold text-slate-800 mb-2 text-center">
-            Rekod Aktiviti / Bantuan
+            Rekod Tugasan Luar
           </h1>
           <p className="text-sm text-slate-600 text-center mb-4">
-            Bantuan <strong>di kaunter sahaja</strong> (3 minit – 1 jam)
+            Ops kesan, pameran, taklimat PERKESO, program luar — <strong>bukan bantuan kaunter</strong>
           </p>
-
-          {/* ALERT: Bantuan kaunter sahaja */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 mb-4">
-            ⚠️ <strong>Bantuan kaunter sahaja</strong> — tolong pelanggan di kiosk, bantu rakan masa kaunter sibuk.
-            Untuk tugasan luar (ops kesan, pameran, taklimat PERKESO, program luar) — gunakan{" "}
-            <Link href="/tugasan" className="underline font-medium">Rekod Tugasan Luar</Link>.
-          </div>
 
           {/* STEP: PIN */}
           {step === "pin" && (
@@ -400,92 +360,40 @@ export default function BantuanPage() {
 
           {/* STEP: FORM */}
           {step === "form" && anggotaInfo && (
-            <form onSubmit={handleStartBantuan} className="space-y-4">
-              {/* Info Anggota */}
+            <form onSubmit={handleStartTugasan} className="space-y-4">
               <div className="text-center p-4 bg-slate-100 rounded-lg">
                 <p className="text-lg font-medium text-slate-800">{anggotaInfo.nama}</p>
                 <p className="text-sm text-slate-600">{anggotaInfo.gred} | {anggotaInfo.anggota_id}</p>
               </div>
 
-              {/* Dropdown Lokasi */}
-              <div>
-                <label className="label" htmlFor="lokasi">Lokasi <span className="text-red-500">*</span></label>
-                <select
-                  id="lokasi"
-                  className="input bg-white cursor-pointer"
-                  value={lokasi}
-                  onChange={(e) => { setLokasi(e.target.value); setLokasiLain(""); }}
-                  required
-                >
-                  <option value="">-- Pilih Lokasi --</option>
-                  {LOKASI_PILIHAN.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                ⏰ Tugasan luar boleh berlangsung sehingga <strong>8 malam</strong>. Sistem akan memotong masa automatik pada 20:00 jika terlupa menamatkan.
               </div>
 
-              {/* Input teks jika Lokasi = Lain-lain */}
-              {lokasi === "Lain-lain" && (
-                <div>
-                  <label className="label" htmlFor="lokasiLain">Nyatakan Lokasi <span className="text-red-500">*</span></label>
-                  <input
-                    id="lokasiLain"
-                    type="text"
-                    className="input"
-                    value={lokasiLain}
-                    onChange={(e) => setLokasiLain(e.target.value)}
-                    placeholder="Masukkan lokasi sebenar"
-                    required
-                    autoFocus
-                  />
-                </div>
-              )}
-
-              {/* Dropdown Kategori Aktiviti */}
               <div>
-                <label className="label" htmlFor="kategori">Kategori Aktiviti <span className="text-red-500">*</span></label>
+                <label className="label" htmlFor="kategori">Kategori Tugasan <span className="text-red-500">*</span></label>
                 <select
                   id="kategori"
                   className="input bg-white cursor-pointer"
                   value={kategori}
-                  onChange={(e) => { setKategori(e.target.value); setSubKategori(""); }}
+                  onChange={(e) => setKategori(e.target.value)}
                   required
                 >
                   <option value="">-- Pilih Kategori --</option>
-                  {KATEGORI_PILIHAN.map((opt) => (
+                  {KATEGORI_TUGASAN_PILIHAN.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Sub-dropdown jika Kategori = Pendaftaran */}
-              {kategori === "Pendaftaran" && (
-                <div>
-                  <label className="label" htmlFor="subKategori">Jenis Pendaftaran <span className="text-red-500">*</span></label>
-                  <select
-                    id="subKategori"
-                    className="input bg-white cursor-pointer"
-                    value={subKategori}
-                    onChange={(e) => setSubKategori(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Pilih Jenis Pendaftaran --</option>
-                    {SUB_KATEGORI_PENDAFTARAN.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Keterangan Aktiviti */}
               <div>
-                <label className="label" htmlFor="remark">Keterangan Aktiviti / Bantuan <span className="text-red-500">*</span></label>
+                <label className="label" htmlFor="remark">Keterangan Tugasan <span className="text-red-500">*</span></label>
                 <textarea
                   id="remark"
                   className="input min-h-[100px] resize-none"
                   value={remark}
                   onChange={(e) => setRemark(e.target.value)}
-                  placeholder="Terangkan aktiviti / bantuan yang dilaksanakan (minima 20 aksara)"
+                  placeholder="Terangkan tugasan luar yang dilaksanakan (minima 20 aksara)"
                   required
                 />
                 <p className={`text-xs mt-1 ${remark.trim().length >= 20 ? "text-green-600" : "text-slate-500"}`}>
@@ -498,7 +406,7 @@ export default function BantuanPage() {
               <div className="flex gap-3">
                 <button type="button" className="btn-secondary flex-1" onClick={resetForm}>Batal</button>
                 <button type="submit" className="btn-primary flex-1" disabled={loading || !isFormValid()}>
-                  {loading ? "Memproses..." : "Mulakan Aktiviti / Bantuan"}
+                  {loading ? "Memproses..." : "Mulakan Tugasan"}
                 </button>
               </div>
 
@@ -511,7 +419,7 @@ export default function BantuanPage() {
           )}
 
           {/* STEP: ACTIVE */}
-          {step === "active" && anggotaInfo && activeBantuan && (
+          {step === "active" && anggotaInfo && activeTugasan && (
             <div className="space-y-4">
               <div className="text-center p-4 bg-slate-100 rounded-lg">
                 <p className="text-lg font-medium text-slate-800">{anggotaInfo.nama}</p>
@@ -522,47 +430,38 @@ export default function BantuanPage() {
                 <div className={`timer-display ${isOverdue ? 'text-red-600' : ''}`}>{formatTime(elapsedTime)}</div>
                 {isOverdue && (
                   <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded border border-red-200">
-                    {overdueReason === "max" ? (
-                      <>⚠️ <strong>Perhatian:</strong> Aktiviti ini telah melebihi had maksimum 2 jam. Sistem akan memotong masa secara automatik pada 2 jam untuk rekod yang adil.</>
-                    ) : overdueReason === "closing" ? (
-                      <>⚠️ <strong>Perhatian:</strong> Aktiviti ini telah melepasi waktu operasi kaunter (5:30 petang). Sistem akan memotong masa secara automatik pada 17:30 untuk rekod yang adil.</>
+                    {overdueReason === "malam" ? (
+                      <>⚠️ <strong>Perhatian:</strong> Tugasan ini telah melepasi had 8 malam. Sistem akan memotong masa secara automatik pada 20:00 untuk rekod yang adil.</>
+                    ) : overdueReason === "max" ? (
+                      <>⚠️ <strong>Perhatian:</strong> Tugasan ini telah melebihi had maksimum 12 jam. Sistem akan memotong masa secara automatik untuk rekod yang adil.</>
                     ) : (
-                      <>⚠️ <strong>Perhatian:</strong> Aktiviti ini telah melepasi 12 tengah malam. Sistem akan memotong masa secara automatik kepada 23:59:59 hari yang sama apabila anda menamatkan aktiviti.</>
+                      <>⚠️ <strong>Perhatian:</strong> Tugasan ini telah melepasi 12 tengah malam. Sistem akan memotong masa secara automatik kepada 23:59:59 hari yang sama.</>
                     )}
                   </p>
                 )}
               </div>
-              <div className="p-4 bg-blue-50 rounded-lg space-y-2">
-                {activeBantuan.lokasi && (
+              <div className="p-4 bg-amber-50 rounded-lg space-y-2">
+                {activeTugasan.kategori && (
                   <div className="flex justify-between text-sm">
-                    <span className="font-medium text-blue-800">Lokasi:</span>
-                    <span className="text-blue-700">{activeBantuan.lokasi}</span>
-                  </div>
-                )}
-                {activeBantuan.kategori && (
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-blue-800">Kategori:</span>
-                    <span className="text-blue-700">
-                      {activeBantuan.kategori}
-                      {activeBantuan.sub_kategori ? ` — ${activeBantuan.sub_kategori}` : ""}
-                    </span>
+                    <span className="font-medium text-amber-800">Kategori:</span>
+                    <span className="text-amber-700">{activeTugasan.kategori}</span>
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-medium text-blue-800 mb-1">Keterangan:</p>
-                  <p className="text-sm text-blue-700">{activeBantuan.remark}</p>
+                  <p className="text-sm font-medium text-amber-800 mb-1">Keterangan:</p>
+                  <p className="text-sm text-amber-700">{activeTugasan.remark}</p>
                 </div>
               </div>
               {error && <div className="status-error text-sm">{error}</div>}
-              <button type="button" className="btn-danger w-full" onClick={handleEndBantuan} disabled={loading}>
-                {loading ? "Memproses..." : "Tamatkan Aktiviti / Bantuan"}
+              <button type="button" className="btn-danger w-full" onClick={handleEndTugasan} disabled={loading}>
+                {loading ? "Memproses..." : "Tamatkan Tugasan"}
               </button>
 
               <div className="pt-4 mt-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => {
-                    if (confirm("Langkah ini akan membuang memori sesi tempatan sahaja. Sebarang aktiviti aktif belum ditamatkan di dalam sistem pangkalan data berpusat. Adakah anda pasti mahu log keluar ketika ada aktiviti sedang berjalan? Anda perlu log masuk semula untuk menamatkan aktiviti ini nanti.")) {
+                    if (confirm("Langkah ini akan membuang memori sesi tempatan sahaja. Sebarang tugasan aktif belum ditamatkan di dalam sistem pangkalan data berpusat. Adakah anda pasti mahu log keluar ketika ada tugasan sedang berjalan? Anda perlu log masuk semula untuk menamatkan tugasan ini nanti.")) {
                       clearSavedCredentials();
                       resetForm();
                     }
@@ -580,15 +479,14 @@ export default function BantuanPage() {
             <div className="text-center space-y-4">
               <div className="status-success">
                 <div className="text-4xl mb-2">✅</div>
-                <p className="font-medium">Aktiviti / Bantuan Berjaya Ditamatkan</p>
+                <p className="font-medium">Tugasan Luar Berjaya Ditamatkan</p>
               </div>
               <div className="p-4 bg-slate-100 rounded-lg">
                 <p className="text-sm text-slate-600 mb-1">Jumlah Durasi</p>
                 <p className="text-2xl font-bold text-slate-800">
-                  {successData.duration_min >= 1 
+                  {successData.duration_min >= 1
                     ? `${successData.duration_min.toFixed(2)} minit`
-                    : `${Math.round(successData.duration_min * 60)} saat`
-                  }
+                    : `${Math.round(successData.duration_min * 60)} saat`}
                 </p>
                 {successData.warning && (
                   <p className="text-sm text-amber-600 mt-2 bg-amber-50 p-2 rounded text-left border border-amber-200">

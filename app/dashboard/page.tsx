@@ -19,10 +19,14 @@ type StatistikResponse = {
         jumlah_kehadiran: number;
         jumlah_bantuan: number;
         total_durasi_min: number;
+        jumlah_tugasan: number;
+        total_durasi_tugasan_min: number;
       };
       semua: {
         jumlah_bantuan: number;
         total_durasi_min: number;
+        jumlah_tugasan: number;
+        total_durasi_tugasan_min: number;
       };
       hari_ini: { pagi: boolean; petang: boolean };
       streak_hari: number;
@@ -360,9 +364,9 @@ export default function DashboardAnggotaPage() {
           )}
         </div>
 
-        {/* Sumbangan Bantuan */}
+        {/* Sumbangan Bantuan Kaunter */}
         <div className="card">
-          <h3 className="font-medium text-slate-800 mb-2">🤝 Sumbangan Bantuan Kaunter</h3>
+          <h3 className="font-medium text-slate-800 mb-2">🤝 Bantuan Kaunter</h3>
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-600">Bulan ini</span>
             <span className="font-medium text-slate-800">
@@ -378,6 +382,28 @@ export default function DashboardAnggotaPage() {
           {peribadi.bulan.jumlah_bantuan > 0 && (
             <p className="text-xs text-green-700 mt-3 p-2 bg-green-50 border border-green-200 rounded-lg">
               🌟 Setiap bantuan anda membantu pelanggan dilayan lebih cepat. Terima kasih atas sumbangan anda!
+            </p>
+          )}
+        </div>
+
+        {/* Tugasan Luar */}
+        <div className="card">
+          <h3 className="font-medium text-slate-800 mb-2">🚗 Tugasan Luar</h3>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Bulan ini</span>
+            <span className="font-medium text-slate-800">
+              {peribadi.bulan.jumlah_tugasan} kali · {formatDurasi(peribadi.bulan.total_durasi_tugasan_min)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm mt-2">
+            <span className="text-slate-600">Sepanjang masa</span>
+            <span className="font-medium text-slate-800">
+              {peribadi.semua.jumlah_tugasan} kali · {formatDurasi(peribadi.semua.total_durasi_tugasan_min)}
+            </span>
+          </div>
+          {peribadi.bulan.jumlah_tugasan > 0 && (
+            <p className="text-xs text-amber-700 mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+              🏅 Tugasan luar anda (ops, pameran, taklimat) turut dikira dalam penilaian. Syabas!
             </p>
           )}
         </div>

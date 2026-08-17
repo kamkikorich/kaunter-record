@@ -3,7 +3,7 @@
 
 import { google } from 'googleapis';
 import type { Anggota, LogRecord } from './types';
-import { SHEET_NAMES, GENESIS_HASH, WAKTU_OPERASI, NOTA_POTONG_WAKTU } from './constants';
+import { SHEET_NAMES, GENESIS_HASH, WAKTU_OPERASI, NOTA_POTONG_WAKTU, MAX_BANTUAN_DURASI_MIN, NOTA_POTONG_MAKS, WAKTU_TUGASAN, MAX_TUGASAN_DURASI_MIN, NOTA_POTONG_TUGASAN_WAKTU, NOTA_POTONG_TUGASAN_MAKS } from './constants';
 import { generateRecordHash, generateRecordId, getServerTimestamp, getCurrentDate } from './hash';
 
 /**
@@ -364,7 +364,7 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
           sub_kategori: row[18] || '',
         };
 
-        // Auto-close jika melepasi waktu operasi (17:30) atau tengah malam
+        // Auto-close jika melepasi waktu operasi (17:30), tengah malam, atau had 2 jam
         const startDate = new Date(aktifRecord.bantuan_start || '');
         const now = new Date();
 
@@ -379,7 +379,10 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
         const pastClosing =
           now.getTime() > closingTime.getTime() && startDate.getTime() < closingTime.getTime();
 
-        if (crossedMidnight || pastClosing) {
+        const pastMax =
+          now.getTime() > startDate.getTime() + MAX_BANTUAN_DURASI_MIN * 60 * 1000;
+
+        if (crossedMidnight || pastClosing || pastMax) {
           // Tamatkan automatik dengan potongan masa
           const anggotaMini: Anggota = {
             anggota_id: aktifRecord.anggota_id,
@@ -426,6 +429,15 @@ export async function appendBantuanEndRecord(
   let finalRemark = startRecord.remark;
   let isCrossedMidnight = false;
   let isPastClosing = false;
+  let isOverMax = false;
+
+  // Had maksimum durasi: 2 jam (bantuan biasa 3 minit - 1 jam)
+  const maxEndTime = startDate.getTime() + MAX_BANTUAN_DURASI_MIN * 60 * 1000;
+  if (endDate.getTime() > maxEndTime) {
+    finalEndTime = maxEndTime;
+    finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + NOTA_POTONG_MAKS;
+    isOverMax = true;
+  }
 
   // Had waktu operasi: potong pada 17:30 hari yang sama (bukan hanya tengah malam)
   // Hanya potong jika aktiviti benar-benar bermula dalam waktu operasi
@@ -433,7 +445,7 @@ export async function appendBantuanEndRecord(
   closingTime.setHours(WAKTU_OPERASI.END_HOUR, WAKTU_OPERASI.END_MINUTE, 0, 0);
 
   if (endDate.getTime() > closingTime.getTime() && startDate.getTime() < closingTime.getTime()) {
-    finalEndTime = closingTime.getTime();
+    finalEndTime = Math.min(finalEndTime, closingTime.getTime());
     finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + NOTA_POTONG_WAKTU;
     isPastClosing = true;
   }
@@ -514,7 +526,282 @@ export async function appendBantuanEndRecord(
       ? "⚠️ Aktiviti melepasi 12 tengah malam. Sistem telah memotong masa kepada 23:59:59 pada hari yang sama untuk ketepatan rekod."
       : isPastClosing
         ? "⚠️ Aktiviti melepasi waktu operasi kaunter (5:30 petang). Sistem telah memotong masa secara automatik pada 17:30 untuk rekod yang adil."
-        : undefined
+        : isOverMax
+          ? "⚠️ Aktiviti melebihi had maksimum 2 jam. Sistem telah memotong masa secara automatik pada 2 jam untuk rekod yang adil."
+          : undefined
+  };
+}
+
+/**
+ * Tambah rekod tugasan luar (START)
+ */
+export async function appendTugasanStartRecord(
+  anggota: Anggota,
+  remark: string,
+  kategori: string = ''
+): Promise<{ recordId: string; success: boolean }> {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  const recordId = generateRecordId();
+  const serverTs = getServerTimestamp();
+  const tarikh = getCurrentDate();
+
+  const lastRecord = await getLastLogRecord();
+  const prevHash = lastRecord?.hash || GENESIS_HASH;
+
+  const payload = {
+    jenis: 'TUGASAN_START',
+    tarikh,
+    anggota_id: anggota.anggota_id,
+    nama: anggota.nama,
+    gred: anggota.gred,
+    remark,
+    kategori,
+    bantuan_start: serverTs,
+  };
+
+  const hash = generateRecordHash(prevHash, recordId, serverTs, payload);
+
+  const row = [
+    recordId,          // A
+    serverTs,          // B
+    'TUGASAN_START',   // C
+    tarikh,            // D
+    '',                // E: sesi
+    anggota.anggota_id,// F
+    anggota.nama,      // G
+    anggota.gred,      // H
+    remark,            // I
+    serverTs,          // J: bantuan_start (masa mula tugasan)
+    '',                // K
+    '',                // L
+    prevHash,          // M
+    hash,              // N
+    'AKTIF',           // O
+    '',                // P
+    '',                // Q: lokasi (kosong - tugasan luar)
+    kategori,          // R: kategori
+    '',                // S
+  ];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${SHEET_NAMES.LOG}!A:S`,
+    valueInputOption: 'RAW',
+    requestBody: {
+      values: [row],
+    },
+  });
+
+  return { recordId, success: true };
+}
+
+/**
+ * Semak tugasan luar aktif untuk anggota
+ * Auto-close jika melepasi had 8 malam (20:00) atau had maksimum 12 jam
+ */
+export async function getTugasanAktif(anggotaId: string): Promise<LogRecord | null> {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${SHEET_NAMES.LOG}!A:S`,
+  });
+
+  const rows = response.data.values || [];
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const row = rows[i];
+    const jenis = row[2];
+    const rowAnggotaId = row[5];
+    const rowStatus = row[14];
+
+    if (jenis === 'TUGASAN_START' && rowAnggotaId === anggotaId && rowStatus === 'AKTIF') {
+      const startRecordId = row[0];
+      let hasEndRecord = false;
+
+      for (let j = 1; j < rows.length; j++) {
+        const checkRow = rows[j];
+        if (checkRow[2] === 'TUGASAN_END' && checkRow[15] === startRecordId) {
+          hasEndRecord = true;
+          break;
+        }
+      }
+
+      if (!hasEndRecord) {
+        const aktifRecord: LogRecord = {
+          record_id: row[0],
+          server_ts: row[1],
+          jenis: 'TUGASAN_START',
+          tarikh: row[3],
+          anggota_id: row[5],
+          nama: row[6],
+          gred: row[7],
+          remark: row[8],
+          bantuan_start: row[9],
+          prev_hash: row[12],
+          hash: row[13],
+          status: 'AKTIF',
+          lokasi: row[16] || '',
+          kategori: row[17] || '',
+          sub_kategori: row[18] || '',
+        };
+
+        // Auto-close jika melepasi had 8 malam atau had 12 jam
+        const startDate = new Date(aktifRecord.bantuan_start || '');
+        const now = new Date();
+
+        const hadMalam = new Date(startDate);
+        hadMalam.setHours(WAKTU_TUGASAN.END_HOUR, WAKTU_TUGASAN.END_MINUTE, 0, 0);
+
+        const crossedMidnight =
+          startDate.getDate() !== now.getDate() ||
+          startDate.getMonth() !== now.getMonth() ||
+          startDate.getFullYear() !== now.getFullYear();
+
+        const pastMalam =
+          now.getTime() > hadMalam.getTime() && startDate.getTime() < hadMalam.getTime();
+
+        const pastMax =
+          now.getTime() > startDate.getTime() + MAX_TUGASAN_DURASI_MIN * 60 * 1000;
+
+        if (crossedMidnight || pastMalam || pastMax) {
+          const anggotaMini: Anggota = {
+            anggota_id: aktifRecord.anggota_id,
+            nama: aktifRecord.nama,
+            gred: aktifRecord.gred,
+            pin: '',
+            pin_hash: '',
+            status: 'AKTIF',
+          };
+          await appendTugasanEndRecord(anggotaMini, aktifRecord);
+          return null;
+        }
+
+        return aktifRecord;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Tambah rekod tugasan luar (END)
+ * Potong automatik pada 8 malam (20:00) atau had maksimum 12 jam
+ */
+export async function appendTugasanEndRecord(
+  anggota: Anggota,
+  startRecord: LogRecord
+): Promise<{ recordId: string; success: boolean; durationMin: number; warning?: string }> {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  const recordId = generateRecordId();
+  const serverTs = getServerTimestamp();
+  const tarikh = getCurrentDate();
+
+  const lastRecord = await getLastLogRecord();
+  const prevHash = lastRecord?.hash || GENESIS_HASH;
+
+  // Kira durasi
+  const startDate = new Date(startRecord.bantuan_start || '');
+  const endDate = new Date(serverTs);
+
+  let finalEndTime = endDate.getTime();
+  let finalRemark = startRecord.remark;
+  let isPastMalam = false;
+  let isOverMax = false;
+
+  // Had maksimum: 12 jam
+  const maxEndTime = startDate.getTime() + MAX_TUGASAN_DURASI_MIN * 60 * 1000;
+  if (endDate.getTime() > maxEndTime) {
+    finalEndTime = maxEndTime;
+    finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + NOTA_POTONG_TUGASAN_MAKS;
+    isOverMax = true;
+  }
+
+  // Had 8 malam (20:00) hari yang sama
+  const hadMalam = new Date(startDate);
+  hadMalam.setHours(WAKTU_TUGASAN.END_HOUR, WAKTU_TUGASAN.END_MINUTE, 0, 0);
+
+  if (endDate.getTime() > hadMalam.getTime() && startDate.getTime() < hadMalam.getTime()) {
+    finalEndTime = Math.min(finalEndTime, hadMalam.getTime());
+    finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + NOTA_POTONG_TUGASAN_WAKTU;
+    isPastMalam = true;
+  }
+
+  // Crossed midnight - potong pada 23:59:59 hari mula
+  if (
+    startDate.getDate() !== endDate.getDate() ||
+    startDate.getMonth() !== endDate.getMonth() ||
+    startDate.getFullYear() !== endDate.getFullYear()
+  ) {
+    const midnight = new Date(startDate);
+    midnight.setHours(23, 59, 59, 999);
+    finalEndTime = Math.min(finalEndTime, midnight.getTime());
+    finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + '[SISTEM: Tugasan melepasi 12 tengah malam - masa dipotong automatik]';
+  }
+
+  const durationSeconds = (finalEndTime - startDate.getTime()) / 1000;
+  const durationMin = Math.round(durationSeconds / 60 * 100) / 100;
+
+  const payload = {
+    jenis: 'TUGASAN_END',
+    tarikh,
+    anggota_id: anggota.anggota_id,
+    nama: anggota.nama,
+    gred: anggota.gred,
+    remark: finalRemark,
+    kategori: startRecord.kategori || '',
+    bantuan_start: startRecord.bantuan_start,
+    bantuan_end: serverTs,
+    durasi_min: durationMin,
+  };
+
+  const hash = generateRecordHash(prevHash, recordId, serverTs, payload);
+
+  const row = [
+    recordId,          // A
+    serverTs,          // B
+    'TUGASAN_END',     // C
+    tarikh,            // D
+    '',                // E
+    anggota.anggota_id,// F
+    anggota.nama,      // G
+    anggota.gred,      // H
+    finalRemark || '', // I
+    startRecord.bantuan_start || '', // J
+    serverTs,          // K
+    durationMin,       // L
+    prevHash,          // M
+    hash,              // N
+    'AKTIF',           // O
+    startRecord.record_id, // P: ref_record_id
+    '',                // Q
+    startRecord.kategori || '', // R
+    '',                // S
+  ];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${SHEET_NAMES.LOG}!A:S`,
+    valueInputOption: 'RAW',
+    requestBody: {
+      values: [row],
+    },
+  });
+
+  return {
+    recordId,
+    success: true,
+    durationMin,
+    warning: isPastMalam
+      ? "⚠️ Tugasan melepasi had 8 malam. Sistem telah memotong masa secara automatik pada 20:00 untuk rekod yang adil."
+      : isOverMax
+        ? "⚠️ Tugasan melebihi had maksimum 12 jam. Sistem telah memotong masa secara automatik untuk rekod yang adil."
+        : undefined,
   };
 }
 
@@ -544,7 +831,7 @@ export async function getAllLogRecords(): Promise<LogRecord[]> {
     remark: row[8] || undefined,
     bantuan_start: row[9] || undefined,
     bantuan_end: row[10] || undefined,
-    durasi_min: row[11] ? parseInt(row[11], 10) : undefined,
+    durasi_min: row[11] ? parseFloat(row[11]) : undefined,
     prev_hash: row[12] || '',
     hash: row[13] || '',
     status: row[14] as LogRecord['status'],
