@@ -58,7 +58,13 @@ function parseDateCell(value: unknown): string {
   if (typeof value === 'number' && isFinite(value)) {
     return new Date((value - GOOGLE_SHEETS_EPOCH_OFFSET) * 86400000).toISOString().slice(0, 10);
   }
-  return String(value || '');
+  const s = String(value || '');
+  // Handle format "dd/mm/yyyy" (jika sel dibaca sebagai formatted)
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) {
+    return `${m[3]}-${m[2]}-${m[1]}`;
+  }
+  return s;
 }
 
 // Pastikan kolum D (tarikh) berformat DATE supaya serial number dipaparkan
