@@ -60,8 +60,10 @@ export default function KehadiranPage() {
   }, [rememberPin, pin, anggotaId]);
 
   const autoDetectSesi = (): SesiType => {
-    const hour = new Date().getHours();
-    return hour < 14 ? "PAGI" : "PETANG";
+    // Sempadan sesi: PAGI 8:00-13:00, PETANG 13:00-17:00 (waktu Malaysia)
+    const kl = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
+    const hour = kl.getHours();
+    return hour < 13 ? "PAGI" : "PETANG";
   };
 
   const handlePinSubmit = async (e: React.FormEvent) => {
@@ -162,9 +164,15 @@ export default function KehadiranPage() {
         </div>
 
         <div className="card">
-          <h1 className="text-2xl font-bold text-slate-800 mb-6 text-center">
+          <h1 className="text-2xl font-bold text-slate-800 mb-2 text-center">
             Rekod Kehadiran
           </h1>
+          <p className="text-sm text-slate-600 text-center mb-4">
+            🌅 PAGI: 8:00 pagi – 1:00 petang &nbsp;·&nbsp; 🌆 PETANG: 1:00 – 5:00 petang
+          </p>
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mb-4 text-center">
+            ⏰ Sesi ditutup automatik selepas waktu tamat. Bertugas dua sesi? Punch 2 kali (pagi & petang).
+          </p>
 
           {step === "pin" && (
             <form onSubmit={handlePinSubmit} className="space-y-4">

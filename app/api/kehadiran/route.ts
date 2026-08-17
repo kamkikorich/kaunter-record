@@ -7,6 +7,34 @@ import { findAnggotaById, appendKehadiranRecord, checkKehadiranExists } from '@/
 import { getCurrentDate } from '@/lib/hash';
 import { validateAnggotaId, validateSesi, sanitizeString } from '@/lib/validators';
 import type { SesiType } from '@/lib/constants';
+import { WAKTU_SESI } from '@/lib/constants';
+
+// Dapatkan waktu semasa dalam zon waktu Malaysia (GMT+8)
+function getTimeInKL(): { hour: number; minute: number } {
+  const now = new Date();
+  const kl = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
+  return { hour: kl.getHours(), minute: kl.getMinutes() };
+}
+
+// Semak sama ada sesi masih dibuka (auto-close)
+function isSesiOpen(sesi: string): { open: boolean; message?: string } {
+  const { hour, minute } = getTimeInKL();
+  const waktu = WAKTU_SESI[sesi as keyof typeof WAKTU_SESI];
+  if (!waktu) return { open: true };
+
+  const nowMinutes = hour * 60 + minute;
+  const endMinutes = waktu.END_HOUR * 60 + waktu.END_MINUTE;
+
+  if (nowMinutes > endMinutes) {
+    const endLabel = sesi === 'PAGI' ? '1:00 petang' : '5:00 petang';
+    return {
+      open: false,
+      message: `⏰ Sesi ${sesi} telah ditutup pada ${endLabel}. Sila rekod pada sesi yang betul.`,
+    };
+  }
+
+  return { open: true };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +73,15 @@ export async function POST(request: NextRequest) {
 
     // Semak tarikh semasa (server-side)
     const tarikh = getCurrentDate();
+
+    // Auto-close sesi: tolak punch selepas waktu tutup sesi
+    const sesiStatus = isSesiOpen(sesi);
+    if (!sesiStatus.open) {
+      return NextResponse.json(
+        { success: false, message: sesiStatus.message },
+        { status: 400 }
+      );
+    }
 
     // Semak jika kehadiran sudah wujud
     const exists = await checkKehadiranExists(anggota_id, tarikh, sesi);

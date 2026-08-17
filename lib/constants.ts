@@ -85,6 +85,14 @@ export const WAKTU_OPERASI = {
   END_MINUTE: 30,
 } as const;
 
+// Waktu sesi kehadiran (auto-close)
+// PAGI: 8:00 pagi - 1:00 petang | PETANG: 1:00 petang - 5:00 petang
+// Punch selepas waktu tutup sesi ditolak (sesi auto-close)
+export const WAKTU_SESI = {
+  PAGI: { START_HOUR: 8, START_MINUTE: 0, END_HOUR: 13, END_MINUTE: 0 },
+  PETANG: { START_HOUR: 13, START_MINUTE: 0, END_HOUR: 17, END_MINUTE: 0 },
+} as const;
+
 // Had maksimum durasi bantuan: 2 jam (bantuan biasa 3 minit - 1 jam;
 // 2 jam cukup untuk program/aktiviti luar biasa). Lebih dari ini = terlupa tamatkan.
 export const MAX_BANTUAN_DURASI_MIN = 120;
