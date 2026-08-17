@@ -49,6 +49,7 @@ export default function BantuanPage() {
   } | null>(null);
   const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
   const [isOverdue, setIsOverdue] = useState(false);
+  const [overdueReason, setOverdueReason] = useState<"closing" | "midnight" | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PIN);
@@ -97,11 +98,23 @@ export default function BantuanPage() {
     let interval: NodeJS.Timeout | null = null;
     if (step === "active" && activeBantuan) {
       setIsOverdue(false);
+      setOverdueReason(null);
       interval = setInterval(() => {
         const start = new Date(activeBantuan.bantuan_start);
         const now = new Date();
 
-        if (
+        // Had waktu operasi kaunter: 17:30 (30 minit selepas tutup 5:00 petang)
+        const closing = new Date(start);
+        closing.setHours(17, 30, 0, 0);
+        const pastClosing =
+          now.getTime() > closing.getTime() && start.getTime() < closing.getTime();
+
+        if (pastClosing) {
+          // Potong paparan pada 17:30
+          setElapsedTime(Math.floor((closing.getTime() - start.getTime()) / 1000));
+          setIsOverdue(true);
+          setOverdueReason("closing");
+        } else if (
           start.getDate() !== now.getDate() ||
           start.getMonth() !== now.getMonth() ||
           start.getFullYear() !== now.getFullYear()
@@ -111,9 +124,11 @@ export default function BantuanPage() {
           midnight.setHours(23, 59, 59, 999);
           setElapsedTime(Math.floor((midnight.getTime() - start.getTime()) / 1000));
           setIsOverdue(true);
+          setOverdueReason("midnight");
         } else {
           setElapsedTime(Math.floor((now.getTime() - start.getTime()) / 1000));
           setIsOverdue(false);
+          setOverdueReason(null);
         }
       }, 1000);
     }
@@ -279,6 +294,7 @@ export default function BantuanPage() {
     setError("");
     setSuccessData(null);
     setIsOverdue(false);
+    setOverdueReason(null);
     localStorage.removeItem(STORAGE_KEY_ACTIVE);
     localStorage.removeItem(STORAGE_KEY_ANGGOTA_INFO);
   };
@@ -487,7 +503,11 @@ export default function BantuanPage() {
                 <div className={`timer-display ${isOverdue ? 'text-red-600' : ''}`}>{formatTime(elapsedTime)}</div>
                 {isOverdue && (
                   <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded border border-red-200">
-                    ⚠️ <strong>Perhatian:</strong> Aktiviti ini telah melepasi 12 tengah malam. Sistem akan memotong masa secara automatik kepada 23:59:59 hari yang sama apabila anda menamatkan aktiviti.
+                    {overdueReason === "closing" ? (
+                      <>⚠️ <strong>Perhatian:</strong> Aktiviti ini telah melepasi waktu operasi kaunter (5:30 petang). Sistem akan memotong masa secara automatik pada 17:30 untuk rekod yang adil.</>
+                    ) : (
+                      <>⚠️ <strong>Perhatian:</strong> Aktiviti ini telah melepasi 12 tengah malam. Sistem akan memotong masa secara automatik kepada 23:59:59 hari yang sama apabila anda menamatkan aktiviti.</>
+                    )}
                   </p>
                 )}
               </div>

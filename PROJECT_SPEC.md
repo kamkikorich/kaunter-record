@@ -54,7 +54,7 @@ Merekod kehadiran
 
 Merekod aktiviti / bantuan
 
-Tiada akses kepada dashboard keseluruhan
+Akses Dashboard Anggota (login PIN): statistik peribadi (kehadiran bulanan, streak, trend mingguan, sumbangan bantuan) + gambaran keseluruhan unit (disusun ikut nama, tanpa ranking individu)
 
 3.2 Admin
 
@@ -100,15 +100,17 @@ Masukkan PIN
 
 Isi remark (minimum 20 aksara)
 
-Tekan “Mula”
+Tekan "Mula"
 
-Tekan “Tamat”
+Tekan "Tamat"
 
 Sistem mengira durasi
 
 Minimum durasi: 3 minit
 
 Tidak dibenarkan aktiviti / bantuan bertindih
+
+Waktu operasi kaunter: 8:00 pagi - 5:00 petang. Aktiviti yang melepasi 5:30 petang dipotong automatik (rekod adil, elak masa diheret akibat terlupa menamatkan aktiviti)
 
 5.3 Dashboard
 

@@ -75,3 +75,16 @@ export const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 8; // 8 jam
 
 // Hash chain genesis
 export const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
+
+// Waktu operasi kaunter: 8:00 AM - 5:00 PM (+30 minit buffer untuk urusan penutupan)
+// Aktiviti yang melepasi had ini dipotong automatik pada 17:30 untuk rekod yang adil
+export const WAKTU_OPERASI = {
+  START_HOUR: 8,
+  START_MINUTE: 0,
+  END_HOUR: 17,
+  END_MINUTE: 30,
+} as const;
+
+// Nota sistem untuk rekod yang dipotong automatik
+export const NOTA_POTONG_WAKTU =
+  '[SISTEM: Aktiviti melepasi waktu operasi kaunter - masa dipotong automatik kepada 17:30]';

@@ -53,6 +53,25 @@ export default function HomePage() {
               </p>
             </div>
           </Link>
+
+          <Link
+            href="/dashboard"
+            className="card block text-center hover:border-purple-300 hover:shadow-md transition-all cursor-pointer group"
+          >
+            <div className="py-4">
+              <div className="text-4xl mb-3">
+                <span className="inline-block p-4 bg-purple-100 rounded-full group-hover:bg-purple-200 transition-colors">
+                  📊
+                </span>
+              </div>
+              <h2 className="text-xl font-semibold text-slate-800 mb-2">
+                Dashboard Anggota
+              </h2>
+              <p className="text-slate-600 text-sm">
+                Lihat perkembangan kehadiran dan sumbangan anda
+              </p>
+            </div>
+          </Link>
         </div>
 
         <div className="mt-8 text-center">

@@ -3,7 +3,7 @@
 
 import { google } from 'googleapis';
 import type { Anggota, LogRecord } from './types';
-import { SHEET_NAMES, GENESIS_HASH } from './constants';
+import { SHEET_NAMES, GENESIS_HASH, WAKTU_OPERASI, NOTA_POTONG_WAKTU } from './constants';
 import { generateRecordHash, generateRecordId, getServerTimestamp, getCurrentDate } from './hash';
 
 /**
@@ -314,6 +314,8 @@ export async function appendBantuanStartRecord(
 
 /**
  * Semak bantuan aktif untuk anggota
+ * Jika bantuan aktif melepasi waktu operasi (17:30) atau tengah malam,
+ * ia auto-ditamatkan dengan potongan masa sebelum dipulangkan.
  */
 export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | null> {
   const sheets = await getGoogleSheetsClient();
@@ -344,7 +346,7 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
       }
 
       if (!hasEndRecord) {
-        return {
+        const aktifRecord: LogRecord = {
           record_id: row[0],
           server_ts: row[1],
           jenis: 'BANTUAN_START',
@@ -361,6 +363,37 @@ export async function getBantuanAktif(anggotaId: string): Promise<LogRecord | nu
           kategori: row[17] || '',
           sub_kategori: row[18] || '',
         };
+
+        // Auto-close jika melepasi waktu operasi (17:30) atau tengah malam
+        const startDate = new Date(aktifRecord.bantuan_start || '');
+        const now = new Date();
+
+        const closingTime = new Date(startDate);
+        closingTime.setHours(WAKTU_OPERASI.END_HOUR, WAKTU_OPERASI.END_MINUTE, 0, 0);
+
+        const crossedMidnight =
+          startDate.getDate() !== now.getDate() ||
+          startDate.getMonth() !== now.getMonth() ||
+          startDate.getFullYear() !== now.getFullYear();
+
+        const pastClosing =
+          now.getTime() > closingTime.getTime() && startDate.getTime() < closingTime.getTime();
+
+        if (crossedMidnight || pastClosing) {
+          // Tamatkan automatik dengan potongan masa
+          const anggotaMini: Anggota = {
+            anggota_id: aktifRecord.anggota_id,
+            nama: aktifRecord.nama,
+            gred: aktifRecord.gred,
+            pin: '',
+            pin_hash: '',
+            status: 'AKTIF',
+          };
+          await appendBantuanEndRecord(anggotaMini, aktifRecord);
+          return null; // Bantuan telah ditamatkan automatik - tiada lagi aktif
+        }
+
+        return aktifRecord;
       }
     }
   }
@@ -392,6 +425,18 @@ export async function appendBantuanEndRecord(
   let finalEndTime = endDate.getTime();
   let finalRemark = startRecord.remark;
   let isCrossedMidnight = false;
+  let isPastClosing = false;
+
+  // Had waktu operasi: potong pada 17:30 hari yang sama (bukan hanya tengah malam)
+  // Hanya potong jika aktiviti benar-benar bermula dalam waktu operasi
+  const closingTime = new Date(startDate);
+  closingTime.setHours(WAKTU_OPERASI.END_HOUR, WAKTU_OPERASI.END_MINUTE, 0, 0);
+
+  if (endDate.getTime() > closingTime.getTime() && startDate.getTime() < closingTime.getTime()) {
+    finalEndTime = closingTime.getTime();
+    finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + NOTA_POTONG_WAKTU;
+    isPastClosing = true;
+  }
 
   if (
     startDate.getDate() !== endDate.getDate() ||
@@ -401,7 +446,7 @@ export async function appendBantuanEndRecord(
     // Crossed midnight. Limit calculation to 23:59:59 of start day.
     const midnight = new Date(startDate);
     midnight.setHours(23, 59, 59, 999);
-    finalEndTime = midnight.getTime();
+    finalEndTime = Math.min(finalEndTime, midnight.getTime());
     finalRemark = (startRecord.remark ? startRecord.remark + ' ' : '') + '[SISTEM: Aktiviti melepasi 12 tengah malam - masa dipotong automatik]';
     isCrossedMidnight = true;
   }
@@ -465,7 +510,11 @@ export async function appendBantuanEndRecord(
     recordId,
     success: true,
     durationMin,
-    warning: isCrossedMidnight ? "⚠️ Aktiviti melepasi 12 tengah malam. Sistem telah memotong masa kepada 23:59:59 pada hari yang sama untuk ketepatan rekod." : undefined
+    warning: isCrossedMidnight
+      ? "⚠️ Aktiviti melepasi 12 tengah malam. Sistem telah memotong masa kepada 23:59:59 pada hari yang sama untuk ketepatan rekod."
+      : isPastClosing
+        ? "⚠️ Aktiviti melepasi waktu operasi kaunter (5:30 petang). Sistem telah memotong masa secara automatik pada 17:30 untuk rekod yang adil."
+        : undefined
   };
 }
 
